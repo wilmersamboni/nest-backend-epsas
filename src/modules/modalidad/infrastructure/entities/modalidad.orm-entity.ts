@@ -5,6 +5,12 @@ import { EtapaPracticaOrmEntity } from 'src/modules/etapa_practica/infrastructur
 export class ModalidadOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+  
+  @Column('uuid')
+  centroId: string; 
+  
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
 
   @Column('text', { unique: true })
   nombre: string;

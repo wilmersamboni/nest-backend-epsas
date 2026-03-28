@@ -1,3 +1,33 @@
+-- TENANT ISOLATION — va antes de todas las demás policies
+-- RESTRICTIVE = AND obligatorio, no importa si otra policy es permissive
+
+DROP POLICY IF EXISTS etapa_tenant      ON etapa_practica_orm_entity;
+DROP POLICY IF EXISTS seguimiento_tenant ON seguimiento_orm_entity;
+DROP POLICY IF EXISTS bitacora_tenant   ON bitacora_orm_entity;
+DROP POLICY IF EXISTS observacion_tenant ON observacion_orm_entity;
+DROP POLICY IF EXISTS asignacion_tenant ON asignacion_orm_entity;
+
+CREATE POLICY etapa_tenant ON etapa_practica_orm_entity
+  AS RESTRICTIVE FOR ALL
+  USING ("centroId"::uuid = current_setting('app.current_centro_id', true)::uuid);
+
+CREATE POLICY seguimiento_tenant ON seguimiento_orm_entity
+  AS RESTRICTIVE FOR ALL
+  USING ("centroId"::uuid = current_setting('app.current_centro_id', true)::uuid);
+
+CREATE POLICY bitacora_tenant ON bitacora_orm_entity
+  AS RESTRICTIVE FOR ALL
+  USING ("centroId"::uuid = current_setting('app.current_centro_id', true)::uuid);
+
+CREATE POLICY observacion_tenant ON observacion_orm_entity
+  AS RESTRICTIVE FOR ALL
+  USING ("centroId"::uuid = current_setting('app.current_centro_id', true)::uuid);
+
+CREATE POLICY asignacion_tenant ON asignacion_orm_entity
+  AS RESTRICTIVE FOR ALL
+  USING ("centroId"::uuid = current_setting('app.current_centro_id', true)::uuid);
+
+
 -- =============================================================
 -- RLS NATIVO EN POSTGRESQL — Versión Corregida (Casting UUID)
 -- =============================================================

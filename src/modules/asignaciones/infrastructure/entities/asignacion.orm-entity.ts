@@ -5,6 +5,10 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 export class AsignacionOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+  @Column('uuid')
+  centroId: string; 
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
 
   @Column('text')
   instructor: string;

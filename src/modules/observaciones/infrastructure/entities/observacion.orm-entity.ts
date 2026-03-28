@@ -4,6 +4,10 @@ import { PrimaryGeneratedColumn, Column, ManyToOne, Entity } from 'typeorm';
 @Entity()
 export class ObservacionOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
+  @Column('uuid')
+  centroId: string; 
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
   @Column('date') fecha: Date;
   @Column('text') descripcion: string;
   @Column('text') evidencia_foto: string;

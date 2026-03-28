@@ -4,6 +4,10 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 @Entity()
 export class BitacoraOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
+  @Column('uuid')
+  centroId: string; 
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
   @Column('date') fecha: Date;
   @Column('text') bitacora_pdf: string;
   @Column('text', { default: 'pendiente' }) estado: string;

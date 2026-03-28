@@ -8,6 +8,12 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'ty
 export class EtapaPracticaOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+  
+  @Column('uuid')
+  centroId: string; 
+  
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
 
   @Column('uuid')
   matriculaId: string;

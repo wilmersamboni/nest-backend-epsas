@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Modalidad } from '../../domain/entities/modalidad.entity';
 import { IModalidadRepository } from '../../domain/ports/modalidad.repository.port';
 import { ModalidadOrmEntity } from '../entities/modalidad.orm-entity';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class ModalidadTypeOrmRepository implements IModalidadRepository {
@@ -13,16 +14,27 @@ export class ModalidadTypeOrmRepository implements IModalidadRepository {
   ) {}
 
   async create(data: Partial<Modalidad>): Promise<Modalidad> {
-    const entity = this.orm.create(data);
+    const entity = this.orm.create({
+      ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+    });
     return this.toDomain(await this.orm.save(entity));
   }
 
   async findAll(): Promise<Modalidad[]> {
-    return (await this.orm.find()).map(this.toDomain);
+    // Modalidad no tiene RlsFilter (todos los roles ven modalidades del centro)
+    // solo se filtra por tenant
+    const qb = this.orm.createQueryBuilder('mod');
+    TenantFilter.apply(qb, 'mod');
+    return (await qb.getMany()).map((e) => this.toDomain(e));
   }
 
   async findById(id: string): Promise<Modalidad | null> {
-    const e = await this.orm.findOneBy({ id });
+    const qb = this.orm
+      .createQueryBuilder('mod')
+      .where('mod.id = :id', { id });
+    TenantFilter.apply(qb, 'mod');
+    const e = await qb.getOne();
     return e ? this.toDomain(e) : null;
   }
 

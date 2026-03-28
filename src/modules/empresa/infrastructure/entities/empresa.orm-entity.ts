@@ -1,10 +1,15 @@
-//import { EtapaPractica } from 'src/etapa_practica/entities/etapa_practica.entity';
+import { EtapaPracticaOrmEntity as EtapaPractica } from 'src/modules/etapa_practica/infrastructure/entities/etapa_practica.orm-entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('empresas')
 export class EmpresaOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+  @Column('uuid')
+  centroId: string; 
+  
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
 
   @Column('int', { unique: true })
   nit: string;
@@ -36,6 +41,6 @@ export class EmpresaOrmEntity {
   @Column('text')
   tipo: string;
 
-  // @OneToMany(() => EtapaPractica, (etapa) => etapa.empresa)
-  // etapas: EtapaPractica[];
+  @OneToMany(() => EtapaPractica, (etapa) => etapa.empresa)
+  etapas: EtapaPractica[];
 }

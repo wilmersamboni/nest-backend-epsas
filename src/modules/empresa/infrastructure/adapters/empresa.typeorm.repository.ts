@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Empresa } from '../../domain/entities/empresa.entity';
 import { IEmpresaRepository } from '../../domain/ports/empresa.repository.port';
 import { EmpresaOrmEntity } from '../entities/empresa.orm-entity';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class EmpresaTypeOrmRepository implements IEmpresaRepository {
@@ -13,18 +14,29 @@ export class EmpresaTypeOrmRepository implements IEmpresaRepository {
   ) {}
 
   async create(data: Partial<Empresa>): Promise<Empresa> {
-    const ormEntity = this.ormRepository.create(data);
+    const ormEntity = this.ormRepository.create({
+      ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+    });
     const saved = await this.ormRepository.save(ormEntity);
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<Empresa[]> {
-    const entities = await this.ormRepository.find();
+    // Empresa no tiene RlsFilter (todos los roles ven empresas del centro)
+    // solo se filtra por tenant
+    const qb = this.ormRepository.createQueryBuilder('emp');
+    TenantFilter.apply(qb, 'emp');
+    const entities = await qb.getMany();
     return entities.map((e) => this.toDomain(e));
   }
 
   async findById(id: string): Promise<Empresa | null> {
-    const entity = await this.ormRepository.findOneBy({ id });
+    const qb = this.ormRepository
+      .createQueryBuilder('emp')
+      .where('emp.id = :id', { id });
+    TenantFilter.apply(qb, 'emp');
+    const entity = await qb.getOne();
     return entity ? this.toDomain(entity) : null;
   }
 
@@ -39,7 +51,6 @@ export class EmpresaTypeOrmRepository implements IEmpresaRepository {
     await this.ormRepository.remove(ormEntity);
   }
 
-  // Mapeo ORM → Dominio (evita que el dominio dependa de TypeORM)
   private toDomain(orm: EmpresaOrmEntity): Empresa {
     const empresa = new Empresa();
     empresa.id = orm.id;

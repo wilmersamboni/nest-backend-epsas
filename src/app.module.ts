@@ -12,7 +12,7 @@ import { SeguimientosModule } from './modules/seguimientos/seguimientos.module';
 import { BitacorasModule } from './modules/bitacoras/bitacoras.module';
 import { ObservacionesModule } from './modules/observaciones/observaciones.module';
 import { EtapaPracticaModule } from './modules/etapa_practica/etapa_practica.module';
-
+import { RlsSubscriber } from './database/rls.subscriber';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
 import { RlsGuard } from './common/guards/rls.guard';
@@ -35,7 +35,8 @@ import { RlsGuard } from './common/guards/rls.guard';
       database: process.env.DB_NAME,
       autoLoadEntities: true,
       synchronize: true,
-      logging: ['error', 'query'],
+      logging: ['error', 'query']
+      
     }),
 
     EmpresaModule,
@@ -52,6 +53,7 @@ import { RlsGuard } from './common/guards/rls.guard';
       provide: APP_GUARD,
       useClass: RlsGuard,
     },
+    RlsSubscriber, // Subscriber global: inyecta info del usuario en cada query
   ],
 })
 export class AppModule implements NestModule {

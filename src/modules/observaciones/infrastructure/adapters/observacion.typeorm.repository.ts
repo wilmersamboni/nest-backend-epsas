@@ -5,6 +5,7 @@ import { Observacion } from '../../domain/entities/observacion.entity';
 import { IObservacionRepository } from '../../domain/ports/observacion.repository.port';
 import { ObservacionOrmEntity } from '../entities/observacion.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class ObservacionTypeOrmRepository implements IObservacionRepository {
@@ -14,8 +15,11 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
   ) {}
 
   async create(data: Partial<ObservacionOrmEntity>): Promise<Observacion> {
-    const entity = this.orm.create(data);
-    const saved = await this.orm.save(entity);
+    const entity = this.orm.create({
+      ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+    });
+    const saved = await this.orm.save(entity) as unknown as ObservacionOrmEntity;
     return this.toDomain(saved);
   }
 
@@ -24,7 +28,8 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.seguimiento', 'seguimiento');
 
-    RlsFilter.applyObservacion(qb, 'o');
+    TenantFilter.apply(qb, 'o');         // 1. solo este centro
+    RlsFilter.applyObservacion(qb, 'o'); // 2. solo lo que el rol ve
 
     return (await qb.getMany()).map((e) => this.toDomain(e));
   }
@@ -35,6 +40,7 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
       .leftJoinAndSelect('o.seguimiento', 'seguimiento')
       .where('o.id = :id', { id });
 
+    TenantFilter.apply(qb, 'o');
     RlsFilter.applyObservacion(qb, 'o');
 
     const e = await qb.getOne();

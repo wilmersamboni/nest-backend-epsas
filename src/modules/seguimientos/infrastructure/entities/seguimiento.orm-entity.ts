@@ -8,6 +8,12 @@ import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'ty
 export class SeguimientoOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+  
+  @Column('uuid')
+  centroId: string; 
+  
+  @Column('uuid', { nullable: true })
+  sedeId: string | null;
 
   @Column('text', { nullable: true })
   actas_pdf: string;

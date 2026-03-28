@@ -5,6 +5,7 @@ import { Bitacora } from '../../domain/entities/bitacora.entity';
 import { IBitacoraRepository } from '../../domain/ports/bitacora.repository.port';
 import { BitacoraOrmEntity } from '../entities/bitacora.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class BitacoraTypeOrmRepository implements IBitacoraRepository {
@@ -18,6 +19,7 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
   ): Promise<Bitacora> {
     const entity = this.orm.create({
       ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
       seguimiento: data.seguimiento
         ? ({ id: data.seguimiento.id } as any)
         : undefined,
@@ -31,7 +33,8 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.seguimiento', 'seguimiento');
 
-    RlsFilter.applyBitacora(qb, 'b');
+    TenantFilter.apply(qb, 'b');       // 1. solo este centro
+    RlsFilter.applyBitacora(qb, 'b'); // 2. solo lo que el rol ve
 
     return (await qb.getMany()).map((e) => this.toDomain(e));
   }
@@ -42,6 +45,7 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
       .leftJoinAndSelect('b.seguimiento', 'seguimiento')
       .where('b.id = :id', { id });
 
+    TenantFilter.apply(qb, 'b');
     RlsFilter.applyBitacora(qb, 'b');
 
     const e = await qb.getOne();

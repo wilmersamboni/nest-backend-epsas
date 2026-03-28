@@ -5,6 +5,7 @@ import { EtapaPractica } from '../../domain/entities/etapa_practica.entity';
 import { IEtapaPracticaRepository } from '../../domain/ports/etapa_practica.repository.port';
 import { EtapaPracticaOrmEntity } from '../entities/etapa_practica.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository {
@@ -14,8 +15,11 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
   ) {}
 
   async create(data: any): Promise<EtapaPractica> {
-    const entity = this.orm.create(data as EtapaPracticaOrmEntity);
-    const saved = await this.orm.save(entity);
+    const entity = this.orm.create({
+      ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+    });
+    const saved = await this.orm.save(entity) as unknown as EtapaPracticaOrmEntity;
     return this.toDomain(saved);
   }
 
@@ -26,7 +30,8 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       .leftJoinAndSelect('ep.modalidad', 'modalidad')
       .orderBy('ep.fecha_inicio', 'DESC');
 
-    RlsFilter.applyEtapaPractica(qb, 'ep');
+    TenantFilter.apply(qb, 'ep');            // 1. solo este centro
+    RlsFilter.applyEtapaPractica(qb, 'ep'); // 2. solo lo que el rol ve
 
     return (await qb.getMany()).map((e) => this.toDomain(e));
   }
@@ -36,6 +41,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       .createQueryBuilder('ep')
       .where('ep.id = :id', { id });
 
+    TenantFilter.apply(qb, 'ep');
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
@@ -49,6 +55,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       .leftJoinAndSelect('ep.modalidad', 'modalidad')
       .where('ep.id = :id', { id });
 
+    TenantFilter.apply(qb, 'ep');
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
@@ -56,6 +63,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
   }
 
   async save(etapa: EtapaPractica): Promise<EtapaPractica> {
+    // save no toca centroId — ya fue asignado en el create
     const entity = this.orm.create(etapa);
     return this.toDomain(await this.orm.save(entity));
   }
@@ -78,6 +86,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       .createQueryBuilder('ep')
       .where('ep.matriculaId = :matriculaId', { matriculaId });
 
+    TenantFilter.apply(qb, 'ep');
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
@@ -92,7 +101,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     p.fecha_fin = e.fecha_fin;
     p.estado = e.estado;
     p.observacion = e.observacion;
-    if (e.empresa) p.empresa = { id: e.empresa.id };
+    if (e.empresa)   p.empresa   = { id: e.empresa.id };
     if (e.modalidad) p.modalidad = { id: e.modalidad.id };
     return p;
   }

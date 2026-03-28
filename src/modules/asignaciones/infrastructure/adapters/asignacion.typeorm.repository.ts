@@ -5,6 +5,7 @@ import { Asignacion } from '../../domain/entities/asignacion.entity';
 import { IAsignacionRepository } from '../../domain/ports/asignacion.repository.port';
 import { AsignacionOrmEntity } from '../entities/asignacion.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class AsignacionTypeOrmRepository implements IAsignacionRepository {
@@ -18,6 +19,7 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
   ): Promise<Asignacion> {
     const entity = this.orm.create({
       ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
       etapa: data.etapa ? ({ id: data.etapa.id } as any) : undefined,
     });
     const saved = await this.orm.save(entity);
@@ -29,7 +31,8 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
       .createQueryBuilder('asig')
       .leftJoinAndSelect('asig.etapa', 'etapa');
 
-    RlsFilter.applyAsignacion(qb, 'asig');
+    TenantFilter.apply(qb, 'asig');       // 1. solo este centro
+    RlsFilter.applyAsignacion(qb, 'asig'); // 2. solo lo que el rol ve
 
     const list = await qb.getMany();
     return list.map((e) => this.toDomain(e));
@@ -41,6 +44,7 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
       .leftJoinAndSelect('asig.etapa', 'etapa')
       .where('asig.id = :id', { id });
 
+    TenantFilter.apply(qb, 'asig');
     RlsFilter.applyAsignacion(qb, 'asig');
 
     const e = await qb.getOne();

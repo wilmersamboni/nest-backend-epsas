@@ -5,6 +5,7 @@ import { Seguimiento } from '../../domain/entities/seguimiento.entity';
 import { ISeguimientoRepository } from '../../domain/ports/seguimiento.repository.port';
 import { SeguimientoOrmEntity } from '../entities/seguimiento.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 
 @Injectable()
 export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
@@ -14,8 +15,11 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   ) {}
 
   async create(data: any): Promise<Seguimiento> {
-    const entity = this.orm.create(data as SeguimientoOrmEntity);
-    const saved = await this.orm.save(entity);
+    const entity = this.orm.create({
+      ...data,
+      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+    });
+    const saved = await this.orm.save(entity) as unknown as SeguimientoOrmEntity;
     return this.toDomain(saved);
   }
 
@@ -24,7 +28,8 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.asignacion', 'asignacion');
 
-    RlsFilter.applySeguimiento(qb, 's');
+    TenantFilter.apply(qb, 's');         // 1. solo este centro
+    RlsFilter.applySeguimiento(qb, 's'); // 2. solo lo que el rol ve
 
     return (await qb.getMany()).map((e) => this.toDomain(e));
   }
@@ -35,6 +40,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
       .leftJoinAndSelect('s.etapa', 'etapa')
       .where('s.id = :id', { id });
 
+    TenantFilter.apply(qb, 's');
     RlsFilter.applySeguimiento(qb, 's');
 
     const e = await qb.getOne();
@@ -56,6 +62,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
       .leftJoinAndSelect('s.etapa', 'etapa')
       .where('etapa.matriculaId IN (:...ids)', { ids });
 
+    TenantFilter.apply(qb, 's');
     RlsFilter.applySeguimiento(qb, 's');
 
     return (await qb.getMany()).map((e) => this.toDomain(e));
