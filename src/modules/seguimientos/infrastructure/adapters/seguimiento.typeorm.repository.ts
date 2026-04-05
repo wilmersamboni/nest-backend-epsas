@@ -6,35 +6,46 @@ import { ISeguimientoRepository } from '../../domain/ports/seguimiento.repositor
 import { SeguimientoOrmEntity } from '../entities/seguimiento.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
+import { AppCacheService } from 'src/common/cache/app-cache.service';
 
 @Injectable()
 export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   constructor(
     @InjectRepository(SeguimientoOrmEntity)
     private readonly orm: Repository<SeguimientoOrmEntity>,
+    private readonly cache: AppCacheService,
   ) {}
 
   async create(data: any): Promise<Seguimiento> {
     const entity = this.orm.create({
       ...data,
-      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+      centroId: TenantFilter.getCurrentCentroId(),
     });
     const saved = await this.orm.save(entity) as unknown as SeguimientoOrmEntity;
+    await this.cache.invalidate('seguimientos');
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<Seguimiento[]> {
+    const cached = await this.cache.get<Seguimiento[]>('seguimientos');
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.asignacion', 'asignacion');
 
-    TenantFilter.apply(qb, 's');         // 1. solo este centro
-    RlsFilter.applySeguimiento(qb, 's'); // 2. solo lo que el rol ve
+    TenantFilter.apply(qb, 's');
+    RlsFilter.applySeguimiento(qb, 's');
 
-    return (await qb.getMany()).map((e) => this.toDomain(e));
+    const result = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('seguimientos', result);
+    return result;
   }
 
   async findById(id: string): Promise<Seguimiento | null> {
+    const cached = await this.cache.get<Seguimiento>('seguimientos', id);
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
@@ -44,19 +55,28 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     RlsFilter.applySeguimiento(qb, 's');
 
     const e = await qb.getOne();
-    return e ? this.toDomain(e) : null;
+    const result = e ? this.toDomain(e) : null;
+    if (result) await this.cache.set('seguimientos', result, id);
+    return result;
   }
 
   async save(seguimiento: Seguimiento): Promise<Seguimiento> {
     const entity = this.orm.create(seguimiento);
-    return this.toDomain(await this.orm.save(entity));
+    const result = this.toDomain(await this.orm.save(entity));
+    await this.cache.invalidate('seguimientos');
+    return result;
   }
 
   async remove(seguimiento: Seguimiento): Promise<void> {
     await this.orm.remove(this.orm.create(seguimiento));
+    await this.cache.invalidate('seguimientos');
   }
 
   async findByMatriculaIds(ids: string[]): Promise<Seguimiento[]> {
+    const cacheKey = `matriculas:${ids.join(',')}`;
+    const cached = await this.cache.get<Seguimiento[]>('seguimientos', cacheKey);
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
@@ -65,7 +85,9 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     TenantFilter.apply(qb, 's');
     RlsFilter.applySeguimiento(qb, 's');
 
-    return (await qb.getMany()).map((e) => this.toDomain(e));
+    const result = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('seguimientos', result, cacheKey);
+    return result;
   }
 
   private toDomain(e: SeguimientoOrmEntity): Seguimiento {

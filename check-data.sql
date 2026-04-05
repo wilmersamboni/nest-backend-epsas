@@ -1,0 +1,1 @@
+SELECT id, "centroId", "matriculaId" FROM etapa_practica_orm_entity;

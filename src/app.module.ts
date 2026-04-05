@@ -16,6 +16,9 @@ import { RlsSubscriber } from './database/rls.subscriber';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
 import { RlsGuard } from './common/guards/rls.guard';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
+import { AppCacheService } from './common/cache/app-cache.service';
 
 @Module({
   imports: [
@@ -46,6 +49,20 @@ import { RlsGuard } from './common/guards/rls.guard';
     SeguimientosModule,
     BitacorasModule,
     ObservacionesModule,
+
+    CacheModule.registerAsync({
+      isGlobal: true
+      ,
+      useFactory:async () =>({
+        store: await redisStore({
+          socket: {
+            host: process.env.REDIS_HOST ?? 'localhost',
+            port: parseInt(process.env.REDIS_PORT ?? '6379'),
+          },
+          ttl: 60*5
+        }),
+      }),
+    }),
   ],
   providers: [
     // Guard global: protege todos los endpoints automáticamente
@@ -54,6 +71,7 @@ import { RlsGuard } from './common/guards/rls.guard';
       useClass: RlsGuard,
     },
     RlsSubscriber, // Subscriber global: inyecta info del usuario en cada query
+    AppCacheService
   ],
 })
 export class AppModule implements NestModule {

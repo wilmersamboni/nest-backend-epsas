@@ -8,12 +8,14 @@ import { SeguimientoTypeOrmRepository } from './infrastructure/adapters/seguimie
 import { MatriculaHttpAdapter } from './infrastructure/adapters/matricula.http.adapter';
 import { SEGUIMIENTO_REPOSITORY_PORT } from './domain/ports/seguimiento.repository.port';
 import { MATRICULA_SERVICE_PORT } from './domain/ports/matricula.service.port';
+import { AppCacheService } from 'src/common/cache/app-cache.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([SeguimientoOrmEntity]), HttpModule],
   controllers: [SeguimientosController],
   providers: [
     SeguimientosService,
+    AppCacheService,
     { provide: SEGUIMIENTO_REPOSITORY_PORT, useClass: SeguimientoTypeOrmRepository },
     { provide: MATRICULA_SERVICE_PORT, useClass: MatriculaHttpAdapter },
   ],

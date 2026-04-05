@@ -14,6 +14,8 @@ import { EmpresaOrmEntity } from './infrastructure/entities/empresa.orm-entity';
 import { EmpresaTypeOrmRepository } from './infrastructure/adapters/empresa.typeorm.repository';
 import { MunicipioHttpAdapter } from './infrastructure/adapters/municipio.http.adapter';
 import { EmpresaController } from './infrastructure/http/empresa.controller';
+import { AppCacheService } from 'src/common/cache/app-cache.service';
+ 
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { EmpresaController } from './infrastructure/http/empresa.controller';
   controllers: [EmpresaController],
   providers: [
     EmpresaService,
+    AppCacheService, 
 
     // Adaptador de persistencia → enlazado al puerto del dominio
     {

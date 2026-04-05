@@ -6,37 +6,48 @@ import { IEtapaPracticaRepository } from '../../domain/ports/etapa_practica.repo
 import { EtapaPracticaOrmEntity } from '../entities/etapa_practica.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
+import { AppCacheService } from 'src/common/cache/app-cache.service';
 
 @Injectable()
 export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository {
   constructor(
     @InjectRepository(EtapaPracticaOrmEntity)
     private readonly orm: Repository<EtapaPracticaOrmEntity>,
+    private readonly cache: AppCacheService,
   ) {}
 
   async create(data: any): Promise<EtapaPractica> {
     const entity = this.orm.create({
       ...data,
-      centroId: TenantFilter.getCurrentCentroId(), // ← tenant inyectado automático
+      centroId: TenantFilter.getCurrentCentroId(),
     });
     const saved = await this.orm.save(entity) as unknown as EtapaPracticaOrmEntity;
+    await this.cache.invalidate('etapas'); // ← invalida caché al crear
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<EtapaPractica[]> {
+    const cached = await this.cache.get<EtapaPractica[]>('etapas');
+    if (cached) return cached; // ← retorna caché si existe
+
     const qb = this.orm
       .createQueryBuilder('ep')
       .leftJoinAndSelect('ep.empresa', 'empresa')
       .leftJoinAndSelect('ep.modalidad', 'modalidad')
       .orderBy('ep.fecha_inicio', 'DESC');
 
-    TenantFilter.apply(qb, 'ep');            // 1. solo este centro
-    RlsFilter.applyEtapaPractica(qb, 'ep'); // 2. solo lo que el rol ve
+    TenantFilter.apply(qb, 'ep');
+    RlsFilter.applyEtapaPractica(qb, 'ep');
 
-    return (await qb.getMany()).map((e) => this.toDomain(e));
+    const result = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('etapas', result); // ← guarda en caché
+    return result;
   }
 
   async findById(id: string): Promise<EtapaPractica | null> {
+    const cached = await this.cache.get<EtapaPractica>('etapas', id);
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('ep')
       .where('ep.id = :id', { id });
@@ -45,10 +56,15 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
-    return e ? this.toDomain(e) : null;
+    const result = e ? this.toDomain(e) : null;
+    if (result) await this.cache.set('etapas', result, id);
+    return result;
   }
 
   async findByIdWithRelations(id: string): Promise<EtapaPractica | null> {
+    const cached = await this.cache.get<EtapaPractica>('etapas', `rel:${id}`);
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('ep')
       .leftJoinAndSelect('ep.empresa', 'empresa')
@@ -59,17 +75,22 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
-    return e ? this.toDomain(e) : null;
+    const result = e ? this.toDomain(e) : null;
+    if (result) await this.cache.set('etapas', result, `rel:${id}`);
+    return result;
   }
 
   async save(etapa: EtapaPractica): Promise<EtapaPractica> {
-    // save no toca centroId — ya fue asignado en el create
     const entity = this.orm.create(etapa);
-    return this.toDomain(await this.orm.save(entity));
+    const result = this.toDomain(await this.orm.save(entity));
+    await this.cache.invalidate('etapas'); // ← invalida al actualizar
+    return result;
   }
 
   async deleteById(id: string): Promise<number> {
-    return (await this.orm.delete(id)).affected ?? 0;
+    const affected = (await this.orm.delete(id)).affected ?? 0;
+    await this.cache.invalidate('etapas'); // ← invalida al eliminar
+    return affected;
   }
 
   async updateObservacion(id: string, observacion: string): Promise<void> {
@@ -79,9 +100,13 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       .set({ observacion })
       .where('id = :id', { id })
       .execute();
+    await this.cache.invalidate('etapas');
   }
 
   async findByMatriculaId(matriculaId: string): Promise<EtapaPractica | null> {
+    const cached = await this.cache.get<EtapaPractica>('etapas', `matricula:${matriculaId}`);
+    if (cached) return cached;
+
     const qb = this.orm
       .createQueryBuilder('ep')
       .where('ep.matriculaId = :matriculaId', { matriculaId });
@@ -90,7 +115,9 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const e = await qb.getOne();
-    return e ? this.toDomain(e) : null;
+    const result = e ? this.toDomain(e) : null;
+    if (result) await this.cache.set('etapas', result, `matricula:${matriculaId}`);
+    return result;
   }
 
   private toDomain(e: EtapaPracticaOrmEntity): EtapaPractica {

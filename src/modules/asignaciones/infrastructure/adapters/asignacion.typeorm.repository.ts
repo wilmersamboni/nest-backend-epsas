@@ -6,12 +6,14 @@ import { IAsignacionRepository } from '../../domain/ports/asignacion.repository.
 import { AsignacionOrmEntity } from '../entities/asignacion.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
+import { AppCacheService } from 'src/common/cache/app-cache.service';
 
 @Injectable()
 export class AsignacionTypeOrmRepository implements IAsignacionRepository {
   constructor(
     @InjectRepository(AsignacionOrmEntity)
     private readonly orm: Repository<AsignacionOrmEntity>,
+    private readonly cache: AppCacheService,
   ) {}
 
   async create(
@@ -23,10 +25,13 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
       etapa: data.etapa ? ({ id: data.etapa.id } as any) : undefined,
     });
     const saved = await this.orm.save(entity);
+    await this.cache.invalidate('asignaciones'); // ← invalida caché al crear
     return this.toDomain(Array.isArray(saved) ? saved[0] : saved);
   }
 
   async findAll(): Promise<Asignacion[]> {
+    const cached = await this.cache.get<Asignacion[]>('asignaciones');
+    if (cached) return cached;
     const qb = this.orm
       .createQueryBuilder('asig')
       .leftJoinAndSelect('asig.etapa', 'etapa');
@@ -35,10 +40,15 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
     RlsFilter.applyAsignacion(qb, 'asig'); // 2. solo lo que el rol ve
 
     const list = await qb.getMany();
+    await this.cache.set('asignaciones', list);
     return list.map((e) => this.toDomain(e));
   }
 
   async findById(id: string): Promise<Asignacion | null> {
+    const cached = await this.cache.get<Asignacion>('asignaciones', id);
+    if (cached) return cached;
+
+
     const qb = this.orm
       .createQueryBuilder('asig')
       .leftJoinAndSelect('asig.etapa', 'etapa')
@@ -48,6 +58,7 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
     RlsFilter.applyAsignacion(qb, 'asig');
 
     const e = await qb.getOne();
+    if (e) await this.cache.set('asignaciones', this.toDomain(e), id);
     return e ? this.toDomain(e) : null;
   }
 
@@ -57,6 +68,7 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
 
   async deleteById(id: string): Promise<number> {
     const result = await this.orm.delete(id);
+    await this.cache.invalidate('asignaciones'); // ← invalida caché al eliminar
     return result.affected ?? 0;
   }
 
