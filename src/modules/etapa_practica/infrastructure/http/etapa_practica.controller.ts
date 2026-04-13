@@ -44,10 +44,10 @@ export class EtapaPracticaController {
     return this.etapaPracticaService.remove(id);
   }
 
-  @Patch(':id/observacion')
+  @Patch('observacion/:id')
   @Roles('admin', 'docente')
   actualizarObservacion(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body('observacion') observacion: string,
   ) {
     return this.etapaPracticaService.actualizarObservacion(id, observacion);

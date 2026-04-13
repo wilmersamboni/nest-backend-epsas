@@ -1,10 +1,11 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
 export interface RequestUser {
-  sub: string;        // id_persona del ERP
-  rol: string;        // 'administrador' | 'instructor' | 'aprendiz'
-  centroId: string;   // id_centro_formacion — viene del header X-Centro-ID
-  sedeId?: string;    // id_sede — opcional, si necesitas granularidad de sede
+  sub: string;
+  rol: string;
+  centroId: string;
+  sedeId?: string;
+  rawToken: string; // ← nuevo
 }
 
 export interface RequestContext {
@@ -28,5 +29,8 @@ export const RequestContextService = {
   },
   getSedeId(): string | null {
     return storage.getStore()?.user?.sedeId ?? null;
+  },
+  getRawToken(): string | null {
+    return storage.getStore()?.user?.rawToken ?? null;
   },
 };

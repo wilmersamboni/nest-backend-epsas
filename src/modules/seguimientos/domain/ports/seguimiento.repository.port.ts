@@ -7,6 +7,7 @@ export interface ISeguimientoRepository {
   save(seguimiento: Seguimiento): Promise<Seguimiento>;
   remove(seguimiento: Seguimiento): Promise<void>;
   findByMatriculaIds(ids: string[]): Promise<Seguimiento[]>;
+  findByEtapaId(etapaId: string): Promise<Seguimiento[]>;
 }
 
 export const SEGUIMIENTO_REPOSITORY_PORT = 'SEGUIMIENTO_REPOSITORY_PORT';

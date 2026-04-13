@@ -6,6 +6,7 @@ export interface IBitacoraRepository {
   findById(id: string): Promise<Bitacora | null>;
   save(bitacora: Bitacora): Promise<Bitacora>;
   deleteById(id: string): Promise<number>;
+  findBySeguimientoId(seguimientoId: string): Promise<Bitacora[]>;
 }
 
 export const BITACORA_REPOSITORY_PORT = 'BITACORA_REPOSITORY_PORT';

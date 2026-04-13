@@ -81,6 +81,10 @@ export class SeguimientosService {
     return this.seguimientoRepository.findByMatriculaIds(idsMatricula);
   }
 
+  async findByEtapaId(etapaId: string) {
+    return this.seguimientoRepository.findByEtapaId(etapaId);
+  }
+
   // Método interno para ser usado por otros módulos, sin token de auth
   async createInternal(data: {
     actas_pdf: string;

@@ -33,7 +33,7 @@ export class SeguimientosController {
 
   @Get(':id')
   @Roles('admin', 'docente', 'estudiante')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('id') id: string) {
     return this.seguimientosService.findOne(id);
   }
 
@@ -50,6 +50,12 @@ export class SeguimientosController {
   @Roles('admin')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.seguimientosService.remove(id);
+  }
+
+  @Get('etapa/:id')
+  @Roles('admin', 'docente', 'estudiante')
+  findByEtapa(@Param('id', ParseUUIDPipe) id: string) {
+    return this.seguimientosService.findByEtapaId(id);
   }
 
   @Get('alumno/:id')

@@ -71,6 +71,24 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
     return result;
   }
 
+  async findBySeguimientoId(seguimientoId: string): Promise<Bitacora[]> {
+    const cacheKey = `seguimiento:${seguimientoId}`;
+    const cached = await this.cache.get<Bitacora[]>('bitacoras', cacheKey);
+    if (cached) return cached;
+
+    const qb = this.orm
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.seguimiento', 'seguimiento')
+      .where('seguimiento.id = :seguimientoId', { seguimientoId });
+
+    TenantFilter.apply(qb, 'b');
+    RlsFilter.applyBitacora(qb, 'b');
+
+    const result = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('bitacoras', result, cacheKey);
+    return result;
+  }
+
   async deleteById(id: string): Promise<number> {
     const affected = (await this.orm.delete(id)).affected ?? 0;
     await this.cache.invalidate('bitacoras');

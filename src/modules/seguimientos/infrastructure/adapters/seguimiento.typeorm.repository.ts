@@ -72,6 +72,24 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     await this.cache.invalidate('seguimientos');
   }
 
+  async findByEtapaId(etapaId: string): Promise<Seguimiento[]> {
+    const cacheKey = `etapa:${etapaId}`;
+    const cached = await this.cache.get<Seguimiento[]>('seguimientos', cacheKey);
+    if (cached) return cached;
+
+    const qb = this.orm
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.etapa', 'etapa')
+      .where('etapa.id = :etapaId', { etapaId });
+
+    TenantFilter.apply(qb, 's');
+    RlsFilter.applySeguimiento(qb, 's');
+
+    const result = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('seguimientos', result, cacheKey);
+    return result;
+  }
+
   async findByMatriculaIds(ids: string[]): Promise<Seguimiento[]> {
     const cacheKey = `matriculas:${ids.join(',')}`;
     const cached = await this.cache.get<Seguimiento[]>('seguimientos', cacheKey);

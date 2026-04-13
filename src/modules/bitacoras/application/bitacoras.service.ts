@@ -46,10 +46,19 @@ export class BitacorasService {
     return this.bitacoraRepository.save({ ...bitacora, estado });
   }
 
+  async actualizarPdf(id: string, filename: string) {
+    const bitacora = await this.findOne(id);
+    return this.bitacoraRepository.save({ ...bitacora, bitacora_pdf: filename });
+  }
+
   private handleDBExceptions(error: any) {
     if (error.code === '23505') throw new BadRequestException(error.detail);
     this.logger.error(error);
     throw new InternalServerErrorException('Error desconocido, revise el log del servidor');
+  }
+
+  async findBySeguimientoId(seguimientoId: string) {
+    return this.bitacoraRepository.findBySeguimientoId(seguimientoId);
   }
 
   // Método interno para ser usado por otros módulos
