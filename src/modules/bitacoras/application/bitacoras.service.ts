@@ -47,8 +47,8 @@ export class BitacorasService {
   }
 
   async actualizarPdf(id: string, filename: string) {
-    const bitacora = await this.findOne(id);
-    return this.bitacoraRepository.save({ ...bitacora, bitacora_pdf: filename });
+    await this.bitacoraRepository.updatePdf(id, filename);
+    return { bitacora_pdf: filename };
   }
 
   private handleDBExceptions(error: any) {

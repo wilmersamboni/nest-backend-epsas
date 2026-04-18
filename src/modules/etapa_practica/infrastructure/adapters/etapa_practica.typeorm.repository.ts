@@ -103,6 +103,16 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     await this.cache.invalidate('etapas');
   }
 
+  async updateAvance(id: string, avance: number): Promise<void> {
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({ avance })
+      .where('id = :id', { id })
+      .execute();
+    await this.cache.invalidate('etapas');
+  }
+
   async findByMatriculaId(matriculaId: string): Promise<EtapaPractica | null> {
     const cached = await this.cache.get<EtapaPractica>('etapas', `matricula:${matriculaId}`);
     if (cached) return cached;
@@ -128,6 +138,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     p.fecha_fin = e.fecha_fin;
     p.estado = e.estado;
     p.observacion = e.observacion;
+    p.avance = e.avance ?? 0;
     if (e.empresa)   p.empresa   = { id: e.empresa.id };
     if (e.modalidad) p.modalidad = { id: e.modalidad.id };
     return p;

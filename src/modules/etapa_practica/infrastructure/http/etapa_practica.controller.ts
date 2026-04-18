@@ -58,4 +58,12 @@ export class EtapaPracticaController {
   buscarPorMatricula(@Param('matriculaId') matriculaId: string) {
     return this.etapaPracticaService.buscarPorMatricula(matriculaId);
   }
+
+  @Patch('avance/:id')
+  @Roles('admin', 'docente')
+  actualizarAvance(@Param('id') id: string) {
+    // El backend calcula el avance sumando bitácoras aceptadas
+    // de todos los seguimientos de esta etapa práctica
+    return this.etapaPracticaService.actualizarAvance(id);
+  }
 }

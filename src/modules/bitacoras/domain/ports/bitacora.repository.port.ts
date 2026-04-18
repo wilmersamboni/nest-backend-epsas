@@ -7,6 +7,7 @@ export interface IBitacoraRepository {
   save(bitacora: Bitacora): Promise<Bitacora>;
   deleteById(id: string): Promise<number>;
   findBySeguimientoId(seguimientoId: string): Promise<Bitacora[]>;
+  updatePdf(id: string, filename: string): Promise<void>;
 }
 
 export const BITACORA_REPOSITORY_PORT = 'BITACORA_REPOSITORY_PORT';

@@ -5,6 +5,7 @@ export class EtapaPractica {
   fecha_fin: Date;
   estado: string;
   observacion: string;
+  avance: number;
   empresa?: { id: string };
   modalidad?: { id: string };
 }

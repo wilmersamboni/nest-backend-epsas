@@ -66,16 +66,25 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
   }
 
   async save(bitacora: Bitacora): Promise<Bitacora> {
-    const result = this.toDomain(await this.orm.save(this.orm.create(bitacora)));
+    // Usa QueryBuilder para no tocar centroId ni columnas de relación
+    // que no están en la entidad de dominio
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({
+        fecha:        bitacora.fecha,
+        bitacora_pdf: bitacora.bitacora_pdf,
+        estado:       bitacora.estado,
+      })
+      .where('id = :id', { id: bitacora.id })
+      .execute();
     await this.cache.invalidate('bitacoras');
-    return result;
+    return bitacora;
   }
 
   async findBySeguimientoId(seguimientoId: string): Promise<Bitacora[]> {
-    const cacheKey = `seguimiento:${seguimientoId}`;
-    const cached = await this.cache.get<Bitacora[]>('bitacoras', cacheKey);
-    if (cached) return cached;
-
+    // Sin caché: esta consulta se llama cuando el modal abre y necesita
+    // datos siempre frescos. El caché con sufijo tenía invalidación incompleta.
     const qb = this.orm
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.seguimiento', 'seguimiento')
@@ -84,9 +93,17 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
     TenantFilter.apply(qb, 'b');
     RlsFilter.applyBitacora(qb, 'b');
 
-    const result = (await qb.getMany()).map((e) => this.toDomain(e));
-    await this.cache.set('bitacoras', result, cacheKey);
-    return result;
+    return (await qb.getMany()).map((e) => this.toDomain(e));
+  }
+
+  async updatePdf(id: string, filename: string): Promise<void> {
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({ bitacora_pdf: filename })
+      .where('id = :id', { id })
+      .execute();
+    await this.cache.invalidate('bitacoras');
   }
 
   async deleteById(id: string): Promise<number> {

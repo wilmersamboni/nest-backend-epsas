@@ -33,13 +33,39 @@ export class AppCacheService {
 
   // Invalida todo lo relacionado a un recurso en el centro actual
   async invalidate(resource: string): Promise<void> {
-    const user = RequestContextService.getUser();
+    const user     = RequestContextService.getUser();
     const centroId = user?.centroId ?? 'anon';
-    // Invalida para todos los roles del centro
+    const prefix   = `${resource}:${centroId}`;
+
+    try {
+      // Con Redis: busca y borra TODAS las claves que empiecen con el prefijo
+      // (incluye sufijos como :admin:seguimiento:uuid, :admin:uuid, etc.)
+      const redisClient = (this.cache as any).store?.client;
+      if (redisClient) {
+        const keysToDelete: string[] = [];
+        let cursor = '0';
+
+        do {
+          const [nextCursor, keys]: [string, string[]] =
+            await redisClient.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
+          cursor = nextCursor;
+          keysToDelete.push(...keys);
+        } while (cursor !== '0');
+
+        if (keysToDelete.length > 0) {
+          await redisClient.del(keysToDelete);
+        }
+        return;
+      }
+    } catch {
+      // fallback si el store no es Redis
+    }
+
+    // Fallback en memoria: borra las claves base conocidas
     await Promise.all([
       this.cache.del(`${resource}:${centroId}:admin`),
       this.cache.del(`${resource}:${centroId}:docente`),
-      this.cache.del(`${resource}:${user?.sub}`), // estudiante
+      this.cache.del(`${resource}:${user?.sub}`),
     ]);
   }
 }

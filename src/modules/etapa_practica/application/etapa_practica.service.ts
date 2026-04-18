@@ -142,6 +142,35 @@ export class EtapaPracticaService {
     return result;
   }
 
+  async actualizarAvance(id: string): Promise<{ avance: number }> {
+    try {
+      // Obtener todos los seguimientos de esta etapa práctica
+      const seguimientos = await this.seguimientosService.findByEtapaId(id);
+
+      // Contar bitácoras aceptadas en TODOS los seguimientos
+      let totalBitacoras = 0;
+      let aceptadas      = 0;
+
+      for (const seg of seguimientos) {
+        const bits = await this.bitacorasService.findBySeguimientoId(seg.id);
+        totalBitacoras += bits.length;
+        aceptadas      += bits.filter((b: any) => b.estado === 'aceptada').length;
+      }
+
+      const avance = totalBitacoras > 0
+        ? Math.min(100, Math.round((aceptadas / totalBitacoras) * 100))
+        : 0;
+
+      this.logger.log(`[Avance] etapa=${id} → ${aceptadas}/${totalBitacoras} = ${avance}%`);
+
+      await this.etapaPracticaRepository.updateAvance(id, avance);
+      return { avance };
+    } catch (e) {
+      this.logger.error(e);
+      throw e;
+    }
+  }
+
   private handleDBExceptions(error: any) {
     if (error.code === '23505') throw new BadRequestException(error.detail);
     this.logger.error(error);
@@ -150,3 +179,4 @@ export class EtapaPracticaService {
     );
   }
 }
+

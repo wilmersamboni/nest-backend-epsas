@@ -30,6 +30,9 @@ export class EtapaPracticaOrmEntity {
   @Column('text')
   observacion: string;
 
+  @Column('int', { default: 0 })
+  avance: number;
+
   @ManyToOne(() => EmpresaOrmEntity)
   empresa: EmpresaOrmEntity;
 
