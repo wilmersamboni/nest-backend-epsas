@@ -13,9 +13,9 @@ export class RlsFilter {
     if (user.rol === 'admin') return qb;
 
     if (user.rol === 'estudiante') {
-      return qb.andWhere(`${alias}.matriculaId = :rlsUserId`, {
-        rlsUserId: user.sub,
-      });
+      const ids = user.matriculaIds ?? [];
+      if (ids.length === 0) return qb.andWhere('1 = 0'); // sin matrículas → sin resultados
+      return qb.andWhere(`${alias}.matriculaId IN (:...matriculaIds)`, { matriculaIds: ids });
     }
 
     if (user.rol === 'docente') {
@@ -36,9 +36,11 @@ export class RlsFilter {
     if (user.rol === 'admin') return qb;
 
     if (user.rol === 'estudiante') {
+      const ids = user.matriculaIds ?? [];
+      if (ids.length === 0) return qb.andWhere('1 = 0');
       return qb
         .innerJoin(`${alias}.etapa`, 'rls_etapa')
-        .andWhere('rls_etapa.matriculaId = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_etapa.matriculaId IN (:...matriculaIds)', { matriculaIds: ids });
     }
 
     if (user.rol === 'docente') {
@@ -60,10 +62,12 @@ export class RlsFilter {
     if (user.rol === 'admin') return qb;
 
     if (user.rol === 'estudiante') {
+      const ids = user.matriculaIds ?? [];
+      if (ids.length === 0) return qb.andWhere('1 = 0');
       return qb
         .innerJoin(`${alias}.seguimiento`, 'rls_seg')
         .innerJoin('rls_seg.etapa', 'rls_etapa')
-        .andWhere('rls_etapa.matriculaId = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_etapa.matriculaId IN (:...matriculaIds)', { matriculaIds: ids });
     }
 
     if (user.rol === 'docente') {
@@ -86,10 +90,12 @@ export class RlsFilter {
     if (user.rol === 'admin') return qb;
 
     if (user.rol === 'estudiante') {
+      const ids = user.matriculaIds ?? [];
+      if (ids.length === 0) return qb.andWhere('1 = 0');
       return qb
         .innerJoin(`${alias}.seguimiento`, 'rls_seg')
         .innerJoin('rls_seg.etapa', 'rls_etapa')
-        .andWhere('rls_etapa.matriculaId = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_etapa.matriculaId IN (:...matriculaIds)', { matriculaIds: ids });
     }
 
     if (user.rol === 'docente') {
@@ -118,9 +124,11 @@ export class RlsFilter {
     }
 
     if (user.rol === 'estudiante') {
+      const ids = user.matriculaIds ?? [];
+      if (ids.length === 0) return qb.andWhere('1 = 0');
       return qb
         .innerJoin(`${alias}.etapa`, 'rls_etapa')
-        .andWhere('rls_etapa.matriculaId = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_etapa.matriculaId IN (:...matriculaIds)', { matriculaIds: ids });
     }
 
     throw new ForbiddenException(`Rol '${user.rol}' sin acceso a asignaciones`);

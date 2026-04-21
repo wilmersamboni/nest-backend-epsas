@@ -5,6 +5,8 @@ export interface RequestUser {
   rol: string;
   centroId: string;
   sedeId?: string;
+  personaId?: string;
+  matriculaIds?: string[];
   rawToken: string; // ← nuevo
 }
 

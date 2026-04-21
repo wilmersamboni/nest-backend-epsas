@@ -44,6 +44,11 @@ export class JwtExtractorMiddleware implements NestMiddleware {
         }
       : null;
 
+  // DEBUG TEMPORAL — eliminar después
+  if (user?.rol === 'estudiante') {
+    this.logger.log(`[RLS-DEBUG] rol=estudiante sub=${user.sub} personaId=${user.personaId} matriculaIds=${JSON.stringify(user.matriculaIds)}`);
+  }
+
   RequestContextService.run({ user }, () => next());
 }
 
@@ -64,6 +69,8 @@ export class JwtExtractorMiddleware implements NestMiddleware {
     return {
       sub: String(payload.idUsuario ?? payload.sub ?? payload.id),
       rol: cargoMap[cargoRaw] ?? 'desconocido',
+      personaId: payload.personaId ? String(payload.personaId) : undefined,
+      matriculaIds: Array.isArray(payload.matriculaIds) ? payload.matriculaIds as string[] : undefined,
     };
   } catch (e) {
     this.logger.warn('JWT no decodificable: ' + (e as Error).message);

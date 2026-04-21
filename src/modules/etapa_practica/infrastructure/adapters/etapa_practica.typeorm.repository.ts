@@ -30,6 +30,10 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     const cached = await this.cache.get<EtapaPractica[]>('etapas');
     if (cached) return cached; // ← retorna caché si existe
 
+    // DEBUG TEMPORAL — muestra todas las prácticas sin filtro
+    const allRaw = await this.orm.find({ select: ['id', 'matriculaId', 'centroId'] as any });
+    console.log('[EP-DEBUG] Todas las prácticas en DB:', JSON.stringify(allRaw));
+
     const qb = this.orm
       .createQueryBuilder('ep')
       .leftJoinAndSelect('ep.empresa', 'empresa')
