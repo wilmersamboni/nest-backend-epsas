@@ -1,0 +1,841 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "1f664a8a-22e5-48b8-aa8e-f199673c31ad",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        944
+      ],
+      "id": "5747b950-0e82-4a0c-b841-0944a7f70f03",
+      "name": "Webhook",
+      "webhookId": "1f664a8a-22e5-48b8-aa8e-f199673c31ad"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw  = $input.first().json;\nconst body = raw.body ?? raw;\nconst entry   = body?.entry?.[0];\nconst change  = entry?.changes?.[0];\nconst value   = change?.value;\nconst message = value?.messages?.[0];\nif (\\!message || message.type \\!== 'text') {\n  return [{ json: { skip: true } }];\n}\nreturn [{\n  json: {\n    from:          message.from,\n    text:          message.text.body,\n    messageId:     message.id,\n    timestamp:     message.timestamp,\n    phoneNumberId: value.metadata.phone_number_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        944
+      ],
+      "id": "03c34537-61f9-41fc-a802-ae8bb0164b23",
+      "name": "Extraer datos del mensaje"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ \"wa:jwt:\" + $json.from }}",
+        "keyType": "string",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        672,
+        944
+      ],
+      "id": "e82917e3-1742-4fb7-a25d-135cb05d21fb",
+      "name": "Verificar  sesion JWT",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "32b00097-b787-41c8-a40f-b693c9831b16",
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        944
+      ],
+      "id": "2bd2b107-60cf-4d8b-8688-c7d34c4026f1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ \"wa:hist:\" + $('Extraer datos del mensaje').item.json.from }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        752
+      ],
+      "id": "f0edbf27-ca11-4c17-ae59-3fccbe16292d",
+      "name": "Cargar  historial  de conversacion",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Camino: sesion JWT activa\nconst jwt  = $('Verificar  sesion JWT').item.json.value;\nconst from = $('Extraer datos del mensaje').item.json.from;\nconst text = $('Extraer datos del mensaje').item.json.text;\nreturn [{ json: { jwt, from, text, pendingValue: null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        752
+      ],
+      "id": "aa00bb11-cc22-dd33-ee44-ff5566778899",
+      "name": "Preparar Sesion"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "85871a14-51c8-4a37-90a2-107806664c9a",
+              "leftValue": "={{ $('Extraer datos del mensaje').item.json.text }}",
+              "rightValue": " / ",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1088,
+        1088
+      ],
+      "id": "bcb6f58a-d590-417a-8ec2-917808771cc8",
+      "name": "¿El mensaje es  un credencial?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://inkjet-planning-titles-activity.trycloudflare.com/api/auth/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"login\":    \"{{ $('Extraer datos del mensaje').item.json.text.split(' / ')[0].trim() }}\",\n  \"password\": \"{{ $('Extraer datos del mensaje').item.json.text.split(' / ')[1].trim() }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1296,
+        992
+      ],
+      "id": "b8c7e943-ae05-4b14-b7ac-153e8694797f",
+      "name": "Autenticar aprendiz",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9102f853-2fe0-4ccb-9ab1-cd2fe6505b0f",
+              "leftValue": "={{ $json.token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1504,
+        992
+      ],
+      "id": "6576a4ad-bd74-4314-b8db-dd73758da5c6",
+      "name": "¿Login exitoso?"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ \"wa:jwt:\" + $('Extraer datos del mensaje').item.json.from }}",
+        "value": "={{ $json.token }}",
+        "expire": true,
+        "ttl": 1800
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        896
+      ],
+      "id": "6811d2ad-19ce-4916-a2d7-31f26b8b71ac",
+      "name": "Guardar JWT con TTL",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ \"wa:pending:\" + $('Extraer datos del mensaje').item.json.from }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        896
+      ],
+      "id": "1d62628e-f250-4096-a72d-5c70910dcde4",
+      "name": "Recuperar intencion pendiente",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Camino: login recien exitoso\nconst jwt  = $('Autenticar aprendiz').item.json.token;\nconst from = $('Extraer datos del mensaje').item.json.from;\nconst text = $('Extraer datos del mensaje').item.json.text;\nconst pendingValue = $input.first().json.value || null;\nreturn [{ json: { jwt, from, text, pendingValue } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        896
+      ],
+      "id": "bb11cc22-dd33-ee44-ff55-aa6677889900",
+      "name": "Preparar Login"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1005758815954700",
+        "recipientPhoneNumber": "={{ $('Extraer datos del mensaje').item.json.from }}",
+        "textBody": "❌ Usuario o contraseña incorrectos.\n\nIntenta de nuevo escribiendo:\n*usuario / contraseña*",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        1712,
+        1088
+      ],
+      "id": "853e2cbf-1360-4e1b-ad1c-e53c010155a1",
+      "name": "Send message",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "PImJsBxI0pO6Rxvb",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ \"wa:pending:\" + $('Extraer datos del mensaje').item.json.from }}",
+        "value": "={{ $('Extraer datos del mensaje').item.json.text }}",
+        "expire": true,
+        "ttl": 600
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        1184
+      ],
+      "id": "b058b84e-65ef-4355-b382-d027ea524f90",
+      "name": "Guardar intencion pendiente",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1005758815954700",
+        "recipientPhoneNumber": "={{ $('Extraer datos del mensaje').item.json.from }}",
+        "textBody": "👋 Hola\\! Para continuar necesito verificar tu identidad.\n\nEscribe tu usuario y contraseña así:\n*usuario / contraseña*\n\nEjemplo:\njuan@sena.edu.co / miClave123",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        1504,
+        1184
+      ],
+      "id": "00f36423-5c3c-4983-8f38-59010d1028c9",
+      "name": "Pedir credenciales",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "PImJsBxI0pO6Rxvb",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "empty"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2336,
+        816
+      ],
+      "id": "e7e59aca-2a04-4c0b-adbb-bff5cfcac6f6",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n// Si hay intencion pendiente guardada, usarla como mensaje; si no, usar el texto original\nconst mensaje = (d.pendingValue && d.pendingValue \\!== 'null' && d.pendingValue.trim() \\!== '')\n  ? d.pendingValue\n  : d.text;\nreturn [{ json: { jwt: d.jwt, mensaje, from: d.from } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        816
+      ],
+      "id": "93df619f-512b-4671-8551-2d731eef7738",
+      "name": "Preparar datos AI"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensaje }}",
+        "options": {
+          "systemMessage": "Eres un asistente académico del sistema de formación SENA. Hablas en español, de forma cercana pero respetuosa. Usas emojis con moderación.\n\nHERRAMIENTAS DISPONIBLES:\n- consultar_matricula: úsala cuando el aprendiz pregunte por su matrícula, inscripción, estado académico, programa o periodo\n- consultar_empresa: úsala cuando pregunte por empresa de práctica, NIT, dirección o instructor asignado\n- consultar_seguimiento: úsala cuando pregunte por seguimiento, avance, horas completadas, bitácora u observaciones\n\nREGLAS:\n- No modifiques datos del sistema\n- No respondas temas ajenos al ámbito académico\n- No reveles información de otros aprendices\n- Si piden algo fuera de tu alcance, sugiere contactar al instructor o coordinación\n- No inventes datos. Si una herramienta falla, avísale al aprendiz\n\nESTILO:\n- Respuestas cortas y claras (máx 3-4 oraciones)\n- Saluda antes de preguntar qué necesita (primera interacción)\n- Si la pregunta es ambigua, pide aclaración antes de consultar",
+          "maxIterations": 5,
+          "returnIntermediateSteps": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2768,
+        816
+      ],
+      "id": "8ec704aa-df21-49fc-878b-b49f10fe7c23",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2656,
+        1008
+      ],
+      "id": "9b8904bf-d9df-4658-9c21-bb7809f4d579",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "v8HgfQ8p2oWC2rDR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar datos AI').item.json.from }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2768,
+        1008
+      ],
+      "id": "4af85db2-1123-4071-b9f9-3ea8fada3e87",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Usa esta herramienta cuando el aprendiz pregunte por su matrícula, inscripción, estado académico, programa o periodo",
+        "url": "https://inkjet-planning-titles-activity.trycloudflare.com/api/matriculas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar datos AI').item.json.jwt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        2880,
+        1008
+      ],
+      "id": "2b3a70a3-6262-4e1c-8f88-1e0db411dfe1",
+      "name": "consultar_matricula"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Usa esta herramienta cuando el aprendiz pregunte por su empresa, lugar de práctica, NIT, dirección o instructor asignado",
+        "url": "https://oklahoma-submitting-responding-rolling.trycloudflare.com/api2/asignaciones",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar datos AI').item.json.jwt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3024,
+        1008
+      ],
+      "id": "265814bf-d7c8-4c84-9428-34623271e3b5",
+      "name": "consultar_empresa"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Usa esta herramienta cuando el aprendiz pregunte por su seguimiento, avance, horas completadas, bitácora u observaciones del instructor",
+        "url": "https://oklahoma-submitting-responding-rolling.trycloudflare.com/api2/seguimientos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar datos AI').item.json.jwt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3168,
+        1008
+      ],
+      "id": "d53088aa-c97e-4c9f-bad6-bc6a53db19bc",
+      "name": "consultar_seguimiento"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Actualiza historial de la conversacion\nconst aiOutput = $input.first().json.output;\nconst from     = $('Preparar datos AI').item.json.from;\nconst mensaje  = $('Preparar datos AI').item.json.mensaje;\n\n// Intenta cargar historial previo (solo existe en camino sesion activa)\nlet prevRaw = '[]';\ntry {\n  const hist = $('Cargar  historial  de conversacion').item.json.value;\n  if (hist) prevRaw = hist;\n} catch (e) {}\n\nlet history = [];\ntry { history = JSON.parse(prevRaw); } catch (e) {}\n\nhistory.push({ role: 'user',      content: mensaje });\nhistory.push({ role: 'assistant', content: aiOutput });\nconst trimmed = history.slice(-10);\n\nreturn [{\n  json: {\n    historyJson: JSON.stringify(trimmed),\n    aiResponse:  aiOutput,\n    from:        from\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2992,
+        816
+      ],
+      "id": "f2bb77f0-4d2f-4110-91b9-13c6c3672027",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ \"wa:hist:\" + $json.from }}",
+        "value": "={{ $json.historyJson }}",
+        "expire": true,
+        "ttl": 7200
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        3216,
+        816
+      ],
+      "id": "67d87c72-d189-4c93-9678-b95756e381d9",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "nXNVfCrXT8nXd3zZ",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1005758815954700",
+        "recipientPhoneNumber": "={{ $json.from }}",
+        "textBody": "={{ $json.aiResponse }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        3440,
+        816
+      ],
+      "id": "9945061d-a32d-4218-99bf-12f5a9c2ba8b",
+      "name": "Enviar respuesta WA",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "PImJsBxI0pO6Rxvb",
+          "name": "WhatsApp account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos del mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer datos del mensaje": {
+      "main": [
+        [
+          {
+            "node": "Verificar  sesion JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar  sesion JWT": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Cargar  historial  de conversacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿El mensaje es  un credencial?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar  historial  de conversacion": {
+      "main": [
+        [
+          {
+            "node": "Preparar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Sesion": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿El mensaje es  un credencial?": {
+      "main": [
+        [
+          {
+            "node": "Autenticar aprendiz",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Guardar intencion pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticar aprendiz": {
+      "main": [
+        [
+          {
+            "node": "¿Login exitoso?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Login exitoso?": {
+      "main": [
+        [
+          {
+            "node": "Guardar JWT con TTL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar JWT con TTL": {
+      "main": [
+        [
+          {
+            "node": "Recuperar intencion pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperar intencion pendiente": {
+      "main": [
+        [
+          {
+            "node": "Preparar Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Login": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Guardar intencion pendiente": {
+      "main": [
+        [
+          {
+            "node": "Pedir credenciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Preparar datos AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar datos AI": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_matricula": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_empresa": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_seguimiento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Enviar respuesta WA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2304d7d76228d43453242ce64d5d70e6cdc966aaa6552fd68a0120c660c31917"
+  }
+}

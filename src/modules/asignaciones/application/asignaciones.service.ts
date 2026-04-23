@@ -39,6 +39,10 @@ export class AsignacionesService {
     return this.asignacionRepository.findAll();
   }
 
+  async findByEtapa(etapaId: string) {
+    return this.asignacionRepository.findByEtapaId(etapaId);
+  }
+
   async findOne(id: string) {
     const asignacion = await this.asignacionRepository.findById(id);
     if (!asignacion) throw new NotFoundException(`Asignacion con el id ${id} no encontrada`);

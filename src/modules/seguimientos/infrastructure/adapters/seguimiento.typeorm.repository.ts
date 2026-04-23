@@ -98,6 +98,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
+      .leftJoinAndSelect('s.bitacoras', 'bitacoras')
       .where('etapa.matriculaId IN (:...ids)', { ids });
 
     TenantFilter.apply(qb, 's');
@@ -118,6 +119,14 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     s.fecha_fin = e.fecha_fin;
     if (e.etapa) s.etapa = { id: e.etapa.id };
     if (e.asignacion) s.asignacion = { id: e.asignacion.id };
+    if (e.bitacoras) {
+      s.bitacoras = e.bitacoras.map(b => ({
+        id: b.id,
+        fecha: b.fecha,
+        estado: b.estado
+      }));
+    }
+
     return s;
   }
 }

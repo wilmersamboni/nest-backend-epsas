@@ -19,5 +19,6 @@ import { AppCacheService } from 'src/common/cache/app-cache.service';
     { provide: ASIGNACION_REPOSITORY_PORT, useClass: AsignacionTypeOrmRepository },
     { provide: PERSONA_SERVICE_PORT, useClass: PersonaHttpAdapter },
   ],
+  exports: [AsignacionesService],
 })
 export class AsignacionesModule {}

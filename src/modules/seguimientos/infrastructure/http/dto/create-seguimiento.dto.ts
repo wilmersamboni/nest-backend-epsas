@@ -3,11 +3,12 @@ import { IsNotEmpty, IsString , IsIn, IsOptional, IsDateString, IsUUID } from "c
 export class CreateSeguimientoDto {
 
     @IsString()
-    @IsNotEmpty()
-    actas_pdf:string;
+    @IsOptional()
+    actas_pdf?: string;
 
-    @IsIn(['actvivo', 'inactivo', 'pendiente'])
-    estado: string;
+    @IsIn(['activo', 'inactivo', 'pendiente'])
+    @IsOptional()
+    estado?: string;
 
     @IsString()
     @IsOptional()

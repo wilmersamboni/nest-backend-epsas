@@ -5,7 +5,7 @@ import { IMatriculaServicePort } from '../../domain/ports/matricula.service.port
 
 @Injectable()
 export class MatriculaHttpAdapter implements IMatriculaServicePort {
-  private readonly MATRICULA_API_URL = 'http://localhost:3000/matricula/por-alumno';
+  private readonly MATRICULA_API_URL = 'http://localhost:3000/api/matriculas/persona';
 
   constructor(private readonly httpService: HttpService) {}
 

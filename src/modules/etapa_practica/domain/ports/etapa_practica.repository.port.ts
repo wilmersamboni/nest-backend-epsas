@@ -9,6 +9,7 @@ export interface IEtapaPracticaRepository {
   deleteById(id: string): Promise<number>;
   updateObservacion(id: string, observacion: string): Promise<void>;
   updateAvance(id: string, avance: number): Promise<void>;
+  updateEstado(id: string, estado: string): Promise<void>;
   findByMatriculaId(matriculaId: string): Promise<EtapaPractica | null>;
 }
 

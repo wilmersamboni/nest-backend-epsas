@@ -5,7 +5,7 @@ import { IPersonaServicePort } from '../../domain/ports/persona.service.port';
 
 @Injectable()
 export class PersonaHttpAdapter implements IPersonaServicePort {
-  private readonly PERSONA_API_URL = 'http://localhost:3000/persona/buscar_jwsv';
+  private readonly PERSONA_API_URL = 'http://localhost:3000/api/personas';
 
   constructor(private readonly httpService: HttpService) {}
 

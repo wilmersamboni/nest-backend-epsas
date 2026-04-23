@@ -7,4 +7,5 @@ export class Seguimiento {
   fecha_fin: Date;
   etapa?: { id: string };
   asignacion?: { id: string };
+  bitacoras?: { id: string; fecha: Date; estado: string }[];
 }

@@ -1,27 +1,31 @@
-import { IsDateString, IsIn, IsInt, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsDateString, IsIn, IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateAsignacioneDto {
     @IsUUID()
     @IsNotEmpty()
-    instructor:string;
+    instructor: string;
 
     @IsDateString()
     @IsNotEmpty()
-    fecha_inicio:Date;
+    fecha_inicio: Date;
 
     @IsDateString()
     @IsNotEmpty()
-    fecha_fin:Date;
+    fecha_fin: Date;
 
     @IsIn(['activo', 'inactivo'])
-    estado:string;
+    estado: string;
 
+    /** Conversión explícita a entero para garantizar que el ValidationPipe
+     *  acepte tanto números JSON como strings numéricos del form.  */
+    @Type(() => Number)
+    @Transform(({ value }) => Math.floor(Number(value)))
     @IsInt()
-    @IsNotEmpty()
+    @Min(1)
     horas: number;
 
     @IsUUID()
     @IsNotEmpty()
     etapaId: string;
-
 }

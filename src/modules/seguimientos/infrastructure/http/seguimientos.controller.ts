@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -9,7 +10,12 @@ import {
   ParseUUIDPipe,
   Req,
   UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { SeguimientosService } from '../../application/seguimientos.service';
 import { CreateSeguimientoDto } from './dto/create-seguimiento.dto';
 import { UpdateSeguimientoDto } from './dto/update-seguimiento.dto';
@@ -56,6 +62,38 @@ export class SeguimientosController {
   @Roles('admin', 'docente', 'estudiante')
   findByEtapa(@Param('id', ParseUUIDPipe) id: string) {
     return this.seguimientosService.findByEtapaId(id);
+  }
+
+  @Patch(':id/estado')
+  @Roles('admin', 'docente')
+  cambiarEstado(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('estado') estado: string,
+  ) {
+    return this.seguimientosService.cambiarEstado(id, estado);
+  }
+
+  @Patch(':id/acta')
+  @Roles('admin', 'docente')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/actas',
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        cb(null, `${unique}${extname(file.originalname)}`);
+      },
+    }),
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype === 'application/pdf') cb(null, true);
+      else cb(new BadRequestException('Solo se permiten archivos PDF'), false);
+    },
+  }))
+  async subirActa(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Debes subir un archivo PDF');
+    return this.seguimientosService.subirActa(id, file.filename);
   }
 
   @Get('alumno/:id')

@@ -117,12 +117,26 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     await this.cache.invalidate('etapas');
   }
 
+  async updateEstado(id: string, estado: string): Promise<void> {
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({ estado })
+      .where('id = :id', { id })
+      .execute();
+    await this.cache.invalidate('etapas');
+  }
+
   async findByMatriculaId(matriculaId: string): Promise<EtapaPractica | null> {
     const cached = await this.cache.get<EtapaPractica>('etapas', `matricula:${matriculaId}`);
     if (cached) return cached;
 
     const qb = this.orm
       .createQueryBuilder('ep')
+      .leftJoinAndSelect('ep.empresa', 'empresa')
+      .leftJoinAndSelect('ep.modalidad', 'modalidad')
+      .leftJoinAndSelect('ep.seguimientos', 'seguimientos')
+      .leftJoinAndSelect('seguimientos.bitacoras', 'bitacoras')
       .where('ep.matriculaId = :matriculaId', { matriculaId });
 
     TenantFilter.apply(qb, 'ep');
@@ -143,8 +157,21 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     p.estado = e.estado;
     p.observacion = e.observacion;
     p.avance = e.avance ?? 0;
-    if (e.empresa)   p.empresa   = { id: e.empresa.id };
-    if (e.modalidad) p.modalidad = { id: e.modalidad.id };
+    if (e.empresa) {
+      p.empresa = {
+        id:        e.empresa.id,
+        nombre:    e.empresa.nombre,
+        nit:       e.empresa.nit,
+        direccion: e.empresa.direccion,
+        telefono:  e.empresa.telefono,
+        correo:    e.empresa.correo,
+        municipio: e.empresa.municipio,
+        tipo:      e.empresa.tipo,
+      };
+    }
+    if (e.modalidad) p.modalidad = { id: e.modalidad.id, nombre: (e.modalidad as any).nombre };
+    if(e.seguimientos) p['seguimientos'] = e.seguimientos.map(s => ({ id: s.id, fecha_inicio: s.fecha_inicio, fecha_fin: s.fecha_fin, observacion: s.observacion, actas_pdf: s.actas_pdf, estado: s.estado }));
+      if(e.seguimientos) p['bitacoras'] = e.seguimientos.flatMap(s => s.bitacoras ? s.bitacoras.map(b => ({ id: b.id, fecha: b.fecha, estado: b.estado })) : []);
     return p;
   }
 }

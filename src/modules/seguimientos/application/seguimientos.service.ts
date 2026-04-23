@@ -85,6 +85,24 @@ export class SeguimientosService {
     return this.seguimientoRepository.findByEtapaId(etapaId);
   }
 
+  async cambiarEstado(id: string, estado: string) {
+    const seguimiento = await this.findOne(id);
+    try {
+      return await this.seguimientoRepository.save({ ...seguimiento, estado });
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
+
+  async subirActa(id: string, filename: string) {
+    const seguimiento = await this.findOne(id);
+    try {
+      return await this.seguimientoRepository.save({ ...seguimiento, actas_pdf: filename });
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
+
   // Método interno para ser usado por otros módulos, sin token de auth
   async createInternal(data: {
     actas_pdf: string;

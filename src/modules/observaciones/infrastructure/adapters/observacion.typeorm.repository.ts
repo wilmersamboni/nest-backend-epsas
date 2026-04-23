@@ -60,6 +60,34 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
     return result;
   }
 
+  async findByEtapaId(etapaId: string): Promise<Observacion[]> {
+    const qb = this.orm
+      .createQueryBuilder('o')
+      .innerJoinAndSelect('o.seguimiento', 'seguimiento')
+      .innerJoin('seguimiento.etapa', 'etapa')
+      .where('etapa.id = :etapaId', { etapaId })
+      .orderBy('o.fecha', 'DESC');
+
+    TenantFilter.apply(qb, 'o');
+    return (await qb.getMany()).map((e) => this.toDomain(e));
+  }
+
+  async findBySeguimientoId(seguimientoId: string): Promise<Observacion[]> {
+  const qb = this.orm
+    .createQueryBuilder('o')
+    .innerJoinAndSelect('o.seguimiento', 'seguimiento')
+    .where('seguimiento.id = :seguimientoId', { seguimientoId })
+    .orderBy('o.fecha', 'DESC');
+
+  // Aplicar filtros igual que en los otros métodos
+  TenantFilter.apply(qb, 'o');
+  RlsFilter.applyObservacion(qb, 'o');
+
+  const result = (await qb.getMany()).map((e) => this.toDomain(e));
+  return result;
+}
+  
+
   async save(o: Observacion): Promise<Observacion> {
     const result = this.toDomain(await this.orm.save(this.orm.create(o)));
     await this.cache.invalidate('observaciones');

@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Body, Patch,
-  Param, Delete, ParseUUIDPipe,
+  Param, Delete, ParseUUIDPipe, Headers, Req, UnauthorizedException
 } from '@nestjs/common';
 import { EtapaPracticaService } from '../../application/etapa_practica.service';
 import { CreateEtapaPracticaDto } from './dto/create-etapa_practica.dto';
@@ -12,14 +12,27 @@ export class EtapaPracticaController {
   constructor(private readonly etapaPracticaService: EtapaPracticaService) {}
 
   @Post()
-  @Roles('admin')
-  create(@Body() dto: CreateEtapaPracticaDto) {
-    return this.etapaPracticaService.create(dto);
+@Roles('admin')
+create(
+  @Body() dto: CreateEtapaPracticaDto,
+  @Req() req
+) {
+  const token =
+    req.cookies?.token || req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    throw new UnauthorizedException('No se envió token');
   }
+
+  return this.etapaPracticaService.create(dto, token);
+}
 
   @Get()
   @Roles('admin', 'docente', 'estudiante')
-  findAll() {
+  findAll(@Headers('x-matricula-id') matriculaId?: string) {
+    if (matriculaId) {
+      return this.etapaPracticaService.buscarPorMatricula(matriculaId);
+    }
     return this.etapaPracticaService.findAll();
   }
 
@@ -36,6 +49,18 @@ export class EtapaPracticaController {
     @Body() dto: UpdateEtapaPracticaDto,
   ) {
     return this.etapaPracticaService.update(id, dto);
+  }
+
+  @Patch(':id/activar')
+  @Roles('admin')
+  activar(@Param('id', ParseUUIDPipe) id: string) {
+    return this.etapaPracticaService.activar(id);
+  }
+
+  @Patch(':id/inactivar')
+  @Roles('admin')
+  inactivar(@Param('id', ParseUUIDPipe) id: string) {
+    return this.etapaPracticaService.inactivar(id);
   }
 
   @Delete(':id')

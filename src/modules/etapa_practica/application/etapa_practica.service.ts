@@ -9,11 +9,11 @@ import {
 import { CreateEtapaPracticaDto } from '../infrastructure/http/dto/create-etapa_practica.dto';
 import { UpdateEtapaPracticaDto } from '../infrastructure/http/dto/update-etapa_practica.dto';
 import {
-
   ETAPA_PRACTICA_REPOSITORY_PORT,
 } from '../domain/ports/etapa_practica.repository.port';
 import { SeguimientosService } from 'src/modules/seguimientos/application/seguimientos.service';
 import { BitacorasService } from 'src/modules/bitacoras/application/bitacoras.service';
+import { AsignacionesService } from 'src/modules/asignaciones/application/asignaciones.service';
 import type { IEtapaPracticaRepository } from '../domain/ports/etapa_practica.repository.port';
 
 @Injectable()
@@ -28,11 +28,12 @@ export class EtapaPracticaService {
     // (son dependencias de aplicación, no de dominio)
     private readonly seguimientosService: SeguimientosService,
     private readonly bitacorasService: BitacorasService,
+    private readonly asignacionesService: AsignacionesService,
   ) {}
 
-  async create(dto: CreateEtapaPracticaDto) {
+  async create(dto: CreateEtapaPracticaDto, token?: string) {
     try {
-      const { empresaId, modalidadId, ...data } = dto;
+      const { empresaId, modalidadId, asignacion, ...data } = dto;
 
       // 1. Crear etapa
       const practica = await this.etapaPracticaRepository.create({
@@ -73,7 +74,7 @@ export class EtapaPracticaService {
       for (const seg of [seg1, seg2]) {
         for (let i = 1; i <= 3; i++) {
           const fechaBitacora = new Date(seg.fecha_inicio);
-          fechaBitacora.setMonth(fechaBitacora.getMonth() + i + 1);
+          fechaBitacora.setMonth(fechaBitacora.getMonth() + i);
 
           await this.bitacorasService.createInternal({
             fecha: fechaBitacora,
@@ -82,6 +83,15 @@ export class EtapaPracticaService {
             seguimientoId: seg.id,
           });
         }
+      }
+
+      // 5. Crear asignación de instructor si se envió en el body
+      if (asignacion) {
+        await this.asignacionesService.create(
+          { ...asignacion, etapaId: practica.id },
+          token ?? '',
+        );
+        this.logger.log(`[Create] Asignación de instructor creada para etapa ${practica.id}`);
       }
 
       return practica;
@@ -169,6 +179,28 @@ export class EtapaPracticaService {
       this.logger.error(e);
       throw e;
     }
+  }
+
+  async activar(id: string): Promise<{ mensaje: string }> {
+    const practica = await this.etapaPracticaRepository.findById(id);
+    if (!practica)
+      throw new NotFoundException(`Etapa practica con id ${id} no encontrada`);
+    if (practica.estado === 'activo')
+      throw new BadRequestException('La etapa práctica ya se encuentra activa');
+
+    await this.etapaPracticaRepository.updateEstado(id, 'activo');
+    return { mensaje: 'Etapa práctica activada correctamente' };
+  }
+
+  async inactivar(id: string): Promise<{ mensaje: string }> {
+    const practica = await this.etapaPracticaRepository.findById(id);
+    if (!practica)
+      throw new NotFoundException(`Etapa practica con id ${id} no encontrada`);
+    if (practica.estado === 'inactivo')
+      throw new BadRequestException('La etapa práctica ya se encuentra inactiva');
+
+    await this.etapaPracticaRepository.updateEstado(id, 'inactivo');
+    return { mensaje: 'Etapa práctica inactivada correctamente' };
   }
 
   private handleDBExceptions(error: any) {

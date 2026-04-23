@@ -16,7 +16,7 @@ import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class EmpresaService {
   private readonly logger = new Logger('EmpresaService');
-  private MUNICIPIO_API_URL = 'http://localhost:3000/municipio/buscar_jwsv';
+  private MUNICIPIO_API_URL = 'http://localhost:3000/api/municipios';
 
   constructor(
     private readonly empresaRepository: EmpresaRepositoryPort,

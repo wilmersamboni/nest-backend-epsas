@@ -37,14 +37,13 @@ export class AppCacheService {
     const centroId = user?.centroId ?? 'anon';
     const prefix   = `${resource}:${centroId}`;
 
+    // ── Rama 1: Redis ───────────────────────────────────────────────────────
     try {
-      // Con Redis: busca y borra TODAS las claves que empiecen con el prefijo
-      // (incluye sufijos como :admin:seguimiento:uuid, :admin:uuid, etc.)
-      const redisClient = (this.cache as any).store?.client;
+      const store      = (this.cache as any).stores?.[0] ?? (this.cache as any).store;
+      const redisClient = store?.client;
       if (redisClient) {
         const keysToDelete: string[] = [];
         let cursor = '0';
-
         do {
           const [nextCursor, keys]: [string, string[]] =
             await redisClient.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
@@ -57,15 +56,27 @@ export class AppCacheService {
         }
         return;
       }
-    } catch {
-      // fallback si el store no es Redis
-    }
+    } catch { /* no es Redis, continuar */ }
 
-    // Fallback en memoria: borra las claves base conocidas
+    // ── Rama 2: store en memoria con keys() ─────────────────────────────────
+    // cache-manager almacena las claves en el store; si expone keys() podemos
+    // filtrar y borrar exactamente las que empiezan con el prefijo del tenant.
+    try {
+      const memStore = (this.cache as any).stores?.[0] ?? (this.cache as any).store;
+      const storeKeys: string[] =
+        await (memStore as any)?.keys?.() ?? [];
+      const matches = storeKeys.filter((k: string) => k.startsWith(prefix));
+      if (matches.length > 0) {
+        await Promise.all(matches.map((k) => this.cache.del(k)));
+      }
+      return;
+    } catch { /* store no expone keys(), usar último recurso */ }
+
+    // ── Rama 3: último recurso — borrar patrones conocidos ──────────────────
+    const roles = ['admin', 'docente', 'instructor', 'estudiante'];
     await Promise.all([
-      this.cache.del(`${resource}:${centroId}:admin`),
-      this.cache.del(`${resource}:${centroId}:docente`),
-      this.cache.del(`${resource}:${user?.sub}`),
+      ...roles.map((r) => this.cache.del(`${resource}:${centroId}:${r}`)),
+      this.cache.del(`${resource}:${user?.sub ?? 'anon'}`),
     ]);
   }
 }

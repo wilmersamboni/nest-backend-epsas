@@ -34,6 +34,13 @@ export class AsignacionesController {
     return this.asignacionesService.findAll();
   }
 
+  /** Retorna todas las asignaciones de una etapa práctica específica */
+  @Get('etapa/:etapaId')
+  @Roles('admin', 'docente')
+  findByEtapa(@Param('etapaId', ParseUUIDPipe) etapaId: string) {
+    return this.asignacionesService.findByEtapa(etapaId);
+  }
+
   @Get(':id')
   @Roles('admin', 'docente', 'estudiante')
   findOne(@Param('id', ParseUUIDPipe) id: string) {

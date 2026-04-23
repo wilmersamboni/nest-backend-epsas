@@ -7,6 +7,7 @@ import { EtapaPracticaTypeOrmRepository } from './infrastructure/adapters/etapa_
 import { ETAPA_PRACTICA_REPOSITORY_PORT } from './domain/ports/etapa_practica.repository.port';
 import { SeguimientosModule } from 'src/modules/seguimientos/seguimientos.module';
 import { BitacorasModule } from 'src/modules/bitacoras/bitacoras.module';
+import { AsignacionesModule } from 'src/modules/asignaciones/asignaciones.module';
 import { AppCacheService } from 'src/common/cache/app-cache.service'; // ← nuevo
 
 @Module({
@@ -14,6 +15,7 @@ import { AppCacheService } from 'src/common/cache/app-cache.service'; // ← nue
     TypeOrmModule.forFeature([EtapaPracticaOrmEntity]),
     SeguimientosModule,
     BitacorasModule,
+    AsignacionesModule,
   ],
   controllers: [EtapaPracticaController],
   providers: [

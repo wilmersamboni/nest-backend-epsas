@@ -62,8 +62,26 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
     return e ? this.toDomain(e) : null;
   }
 
+  async findByEtapaId(etapaId: string): Promise<Asignacion[]> {
+    const cached = await this.cache.get<Asignacion[]>('asignaciones', `etapa:${etapaId}`);
+    if (cached) return cached;
+
+    const qb = this.orm
+      .createQueryBuilder('asig')
+      .leftJoinAndSelect('asig.etapa', 'etapa')
+      .where('etapa.id = :etapaId', { etapaId });
+
+    TenantFilter.apply(qb, 'asig');
+
+    const list = (await qb.getMany()).map((e) => this.toDomain(e));
+    await this.cache.set('asignaciones', list, `etapa:${etapaId}`);
+    return list;
+  }
+
   async save(asignacion: Asignacion): Promise<Asignacion> {
-    return this.toDomain(await this.orm.save(this.orm.create(asignacion)));
+    const saved = this.toDomain(await this.orm.save(this.orm.create(asignacion)));
+    await this.cache.invalidate('asignaciones');
+    return saved;
   }
 
   async deleteById(id: string): Promise<number> {

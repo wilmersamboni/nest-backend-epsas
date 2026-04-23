@@ -6,9 +6,13 @@ import { ObservacionOrmEntity } from './infrastructure/entities/observacion.orm-
 import { ObservacionTypeOrmRepository } from './infrastructure/adapters/observacion.typeorm.repository';
 import { OBSERVACION_REPOSITORY_PORT } from './domain/ports/observacion.repository.port';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { SeguimientosModule } from '../seguimientos/seguimientos.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ObservacionOrmEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ObservacionOrmEntity]),
+    SeguimientosModule,
+  ],
   controllers: [ObservacionesController],
   providers: [
     ObservacionesService,
