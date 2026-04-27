@@ -8,7 +8,8 @@ import { ETAPA_PRACTICA_REPOSITORY_PORT } from './domain/ports/etapa_practica.re
 import { SeguimientosModule } from 'src/modules/seguimientos/seguimientos.module';
 import { BitacorasModule } from 'src/modules/bitacoras/bitacoras.module';
 import { AsignacionesModule } from 'src/modules/asignaciones/asignaciones.module';
-import { AppCacheService } from 'src/common/cache/app-cache.service'; // ← nuevo
+import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { ConfiguracionModule } from 'src/modules/configuracion/configuracion.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AppCacheService } from 'src/common/cache/app-cache.service'; // ← nue
     SeguimientosModule,
     BitacorasModule,
     AsignacionesModule,
+    ConfiguracionModule,
   ],
   controllers: [EtapaPracticaController],
   providers: [

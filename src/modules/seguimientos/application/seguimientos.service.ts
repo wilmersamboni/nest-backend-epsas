@@ -86,18 +86,20 @@ export class SeguimientosService {
   }
 
   async cambiarEstado(id: string, estado: string) {
-    const seguimiento = await this.findOne(id);
+    await this.findOne(id); // valida que existe
     try {
-      return await this.seguimientoRepository.save({ ...seguimiento, estado });
+      await this.seguimientoRepository.updateEstado(id, estado);
+      return { id, estado };
     } catch (error) {
       this.handleDBExceptions(error);
     }
   }
 
   async subirActa(id: string, filename: string) {
-    const seguimiento = await this.findOne(id);
+    await this.findOne(id); // valida que existe
     try {
-      return await this.seguimientoRepository.save({ ...seguimiento, actas_pdf: filename });
+      await this.seguimientoRepository.updateActas(id, filename);
+      return { id, actas_pdf: filename };
     } catch (error) {
       this.handleDBExceptions(error);
     }

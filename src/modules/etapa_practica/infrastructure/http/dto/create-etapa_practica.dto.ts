@@ -1,6 +1,6 @@
 import {
   IsUUID, IsDateString, IsString, IsNotEmpty,
-  IsIn, IsOptional, IsInt, ValidateNested,
+  IsIn, IsOptional, IsInt, IsNumber, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -59,4 +59,12 @@ export class CreateEtapaPracticaDto {
   @ValidateNested()
   @Type(() => CreateAsignacionEnEtapaDto)
   asignacion?: CreateAsignacionEnEtapaDto;
+
+  /**
+   * Avance académico actual del aprendiz (0-100).
+   * El backend lo compara contra el mínimo configurado y rechaza si no lo cumple.
+   */
+  @IsOptional()
+  @IsNumber()
+  avanceMatricula?: number;
 }

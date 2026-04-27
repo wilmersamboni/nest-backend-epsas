@@ -5,6 +5,8 @@ export interface ISeguimientoRepository {
   findAll(): Promise<Seguimiento[]>;
   findById(id: string): Promise<Seguimiento | null>;
   save(seguimiento: Seguimiento): Promise<Seguimiento>;
+  updateEstado(id: string, estado: string): Promise<void>;
+  updateActas(id: string, filename: string): Promise<void>;
   remove(seguimiento: Seguimiento): Promise<void>;
   findByMatriculaIds(ids: string[]): Promise<Seguimiento[]>;
   findByEtapaId(etapaId: string): Promise<Seguimiento[]>;

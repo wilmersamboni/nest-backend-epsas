@@ -61,10 +61,47 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   }
 
   async save(seguimiento: Seguimiento): Promise<Seguimiento> {
-    const entity = this.orm.create(seguimiento);
-    const result = this.toDomain(await this.orm.save(entity));
+    // Actualización completa (usada por service.update con DTO parcial).
+    // Solo incluye en SET los campos definidos para no sobreescribir con NULL.
+    const fields: Partial<SeguimientoOrmEntity> = {};
+    if (seguimiento.actas_pdf   !== undefined) fields.actas_pdf   = seguimiento.actas_pdf;
+    if (seguimiento.estado      !== undefined) fields.estado      = seguimiento.estado;
+    if (seguimiento.observacion !== undefined) fields.observacion = seguimiento.observacion;
+    if (seguimiento.fecha_inicio !== undefined) fields.fecha_inicio = seguimiento.fecha_inicio;
+    if (seguimiento.fecha_fin    !== undefined) fields.fecha_fin    = seguimiento.fecha_fin;
+
+    if (Object.keys(fields).length > 0) {
+      await this.orm
+        .createQueryBuilder()
+        .update()
+        .set(fields)
+        .where('id = :id', { id: seguimiento.id })
+        .execute();
+    }
     await this.cache.invalidate('seguimientos');
-    return result;
+    return seguimiento;
+  }
+
+  /** Cambia únicamente la columna `estado` — no toca ningún otro campo. */
+  async updateEstado(id: string, estado: string): Promise<void> {
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({ estado })
+      .where('id = :id', { id })
+      .execute();
+    await this.cache.invalidate('seguimientos');
+  }
+
+  /** Guarda únicamente el nombre del archivo de acta — no toca ningún otro campo. */
+  async updateActas(id: string, filename: string): Promise<void> {
+    await this.orm
+      .createQueryBuilder()
+      .update()
+      .set({ actas_pdf: filename })
+      .where('id = :id', { id })
+      .execute();
+    await this.cache.invalidate('seguimientos');
   }
 
   async remove(seguimiento: Seguimiento): Promise<void> {
@@ -73,10 +110,8 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   }
 
   async findByEtapaId(etapaId: string): Promise<Seguimiento[]> {
-    const cacheKey = `etapa:${etapaId}`;
-    const cached = await this.cache.get<Seguimiento[]>('seguimientos', cacheKey);
-    if (cached) return cached;
-
+    // Sin caché: se llama al abrir el modal y necesita datos siempre frescos.
+    // El caché con sufijo tenía invalidación incompleta (igual que bitácoras).
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
@@ -85,9 +120,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     TenantFilter.apply(qb, 's');
     RlsFilter.applySeguimiento(qb, 's');
 
-    const result = (await qb.getMany()).map((e) => this.toDomain(e));
-    await this.cache.set('seguimientos', result, cacheKey);
-    return result;
+    return (await qb.getMany()).map((e) => this.toDomain(e));
   }
 
   async findByMatriculaIds(ids: string[]): Promise<Seguimiento[]> {

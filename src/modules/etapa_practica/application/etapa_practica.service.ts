@@ -14,6 +14,7 @@ import {
 import { SeguimientosService } from 'src/modules/seguimientos/application/seguimientos.service';
 import { BitacorasService } from 'src/modules/bitacoras/application/bitacoras.service';
 import { AsignacionesService } from 'src/modules/asignaciones/application/asignaciones.service';
+import { ConfiguracionService } from 'src/modules/configuracion/configuracion.service';
 import type { IEtapaPracticaRepository } from '../domain/ports/etapa_practica.repository.port';
 
 @Injectable()
@@ -29,11 +30,23 @@ export class EtapaPracticaService {
     private readonly seguimientosService: SeguimientosService,
     private readonly bitacorasService: BitacorasService,
     private readonly asignacionesService: AsignacionesService,
+    private readonly configuracionService: ConfiguracionService,
   ) {}
 
   async create(dto: CreateEtapaPracticaDto, token?: string) {
     try {
-      const { empresaId, modalidadId, asignacion, ...data } = dto;
+      const { empresaId, modalidadId, asignacion, avanceMatricula, ...data } = dto;
+
+      // Validar avance mínimo si el cliente lo envía
+      if (avanceMatricula !== undefined) {
+        const config = await this.configuracionService.getConfig();
+        if (avanceMatricula < config.minAvance) {
+          throw new BadRequestException(
+            `El aprendiz no cumple el avance mínimo requerido ` +
+            `(${config.minAvance}%). Avance actual: ${avanceMatricula}%`,
+          );
+        }
+      }
 
       // 1. Crear etapa
       const practica = await this.etapaPracticaRepository.create({
@@ -44,14 +57,17 @@ export class EtapaPracticaService {
 
       // 2. Calcular fechas de los seguimientos
       const fechaInicio = new Date(practica.fecha_inicio);
-
+          
       const fechaMitad = new Date(fechaInicio);
-      fechaMitad.setMonth(fechaMitad.getMonth() + 3);
-
+      fechaMitad.setMonth(fechaMitad.getMonth() + 2); // mes 2
+          
+      const fechaTercio = new Date(fechaInicio);
+      fechaTercio.setMonth(fechaTercio.getMonth() + 4); // mes 4
+          
       const fechaFin = new Date(fechaInicio);
-      fechaFin.setMonth(fechaFin.getMonth() + 6);
-
-      // 3. Crear los dos seguimientos usando el service de ese módulo
+      fechaFin.setMonth(fechaFin.getMonth() + 6); // mes 6
+          
+      // 3. Crear los tres seguimientos
       const seg1 = await this.seguimientosService.createInternal({
         actas_pdf: 'pendiente',
         estado: 'activo',
@@ -60,22 +76,31 @@ export class EtapaPracticaService {
         fecha_fin: fechaMitad,
         etapaId: practica.id,
       });
-
+      
       const seg2 = await this.seguimientosService.createInternal({
         actas_pdf: 'pendiente',
         estado: 'activo',
         observacion: 'Segundo seguimiento',
         fecha_inicio: fechaMitad,
+        fecha_fin: fechaTercio,
+        etapaId: practica.id,
+      });
+      
+      const seg3 = await this.seguimientosService.createInternal({
+        actas_pdf: 'pendiente',
+        estado: 'activo',
+        observacion: 'Tercer seguimiento',
+        fecha_inicio: fechaTercio,
         fecha_fin: fechaFin,
         etapaId: practica.id,
       });
-
-      // 4. Crear 3 bitácoras por seguimiento
-      for (const seg of [seg1, seg2]) {
-        for (let i = 1; i <= 3; i++) {
+      
+      // 4. Crear 2 bitácoras por seguimiento (6 en total)
+      for (const seg of [seg1, seg2, seg3]) {
+        for (let i = 1; i <= 2; i++) {
           const fechaBitacora = new Date(seg.fecha_inicio);
           fechaBitacora.setMonth(fechaBitacora.getMonth() + i);
-
+        
           await this.bitacorasService.createInternal({
             fecha: fechaBitacora,
             bitacora_pdf: 'pendiente',
@@ -179,6 +204,15 @@ export class EtapaPracticaService {
       this.logger.error(e);
       throw e;
     }
+  }
+
+  async cambiarEstado(id: string, nuevoEstado: string): Promise<{ id: string; estado: string }> {
+    const validos = ['activo', 'inactivo', 'suspendido', 'por certificar', 'certificado'];
+    if (!validos.includes(nuevoEstado)) {
+      throw new BadRequestException(`Estado '${nuevoEstado}' no es válido`);
+    }
+    await this.etapaPracticaRepository.updateEstado(id, nuevoEstado);
+    return { id, estado: nuevoEstado };
   }
 
   async activar(id: string): Promise<{ mensaje: string }> {

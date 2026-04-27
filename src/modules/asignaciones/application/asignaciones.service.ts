@@ -22,7 +22,9 @@ export class AsignacionesService {
   ) {}
 
   async create(dto: CreateAsignacioneDto, token: string) {
-    if (!token) throw new UnauthorizedException('No se envió token');
+    this.logger.log(`[create] token recibido: "${token?.substring(0, 30)}..."`);
+  
+  if (!token) throw new UnauthorizedException('No se envió token');
 
     const persona = await this.personaService.buscarPersona(dto.instructor, token);
     if (!persona) throw new BadRequestException(`El instructor con ID ${dto.instructor} no existe`);

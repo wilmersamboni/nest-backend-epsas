@@ -51,6 +51,15 @@ create(
     return this.etapaPracticaService.update(id, dto);
   }
 
+  @Patch(':id/estado')
+  @Roles('admin', 'docente')
+  cambiarEstado(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('estado') estado: string,
+  ) {
+    return this.etapaPracticaService.cambiarEstado(id, estado);
+  }
+
   @Patch(':id/activar')
   @Roles('admin')
   activar(@Param('id', ParseUUIDPipe) id: string) {

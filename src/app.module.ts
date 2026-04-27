@@ -7,11 +7,13 @@ import { join } from 'path';
 
 import { EmpresaModule } from './modules/empresa/empresa.module';
 import { ModalidadModule } from './modules/modalidad/module';
+import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
 import { AsignacionesModule } from './modules/asignaciones/asignaciones.module';
 import { SeguimientosModule } from './modules/seguimientos/seguimientos.module';
 import { BitacorasModule } from './modules/bitacoras/bitacoras.module';
 import { ObservacionesModule } from './modules/observaciones/observaciones.module';
 import { EtapaPracticaModule } from './modules/etapa_practica/etapa_practica.module';
+import { FormatosModule } from './modules/formatos/formatos.module';
 import { RlsSubscriber } from './database/rls.subscriber';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
@@ -42,6 +44,7 @@ import { AppCacheService } from './common/cache/app-cache.service';
       
     }),
 
+    ConfiguracionModule,
     EmpresaModule,
     EtapaPracticaModule,
     ModalidadModule,
@@ -49,19 +52,40 @@ import { AppCacheService } from './common/cache/app-cache.service';
     SeguimientosModule,
     BitacorasModule,
     ObservacionesModule,
+    FormatosModule,
 
     CacheModule.registerAsync({
-      isGlobal: true
-      ,
-      useFactory:async () =>({
-        store: await redisStore({
-          socket: {
-            host: process.env.REDIS_HOST ?? 'localhost',
-            port: parseInt(process.env.REDIS_PORT ?? '6379'),
-          },
-          ttl: 60*5
-        }),
-      }),
+      isGlobal: true,
+      useFactory: async () => {
+        try {
+          const store = await redisStore({
+            socket: {
+              host: process.env.REDIS_HOST ?? 'localhost',
+              port: parseInt(process.env.REDIS_PORT ?? '6379'),
+              // Reconectar con backoff exponencial hasta 10 s; null = no reintentar más
+              reconnectStrategy: (retries: number) => {
+                if (retries > 20) return false;          // deja de reintentar
+                return Math.min(retries * 200, 10_000);  // espera hasta 10 s
+              },
+            },
+            ttl: 60 * 5,
+          });
+
+          // Silenciar errores de socket para que NO maten el proceso
+          const client = (store as any).client;
+          if (client) {
+            client.on('error', (err: Error) => {
+              console.warn('[Redis] error de conexión (se intentará reconectar):', err.message);
+            });
+          }
+
+          return { store };
+        } catch (err) {
+          // Redis no disponible al arrancar → caché en memoria como fallback
+          console.warn('[Cache] Redis no disponible, usando caché en memoria:', (err as Error).message);
+          return { ttl: 60 * 5 };
+        }
+      },
     }),
   ],
   providers: [
