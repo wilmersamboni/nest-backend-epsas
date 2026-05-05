@@ -1,13 +1,8 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export const TIPOS_FORMATO = [
-  'contrato',
-  'acta_inicio',
-  'acta_seguimiento_1',
-  'acta_seguimiento_2',
-  'carta_presentacion',
-  'paz_y_salvo',
-  'certificado',
+  'acta_seguimiento',
+  'bitacora',
   'otro',
 ] as const;
 

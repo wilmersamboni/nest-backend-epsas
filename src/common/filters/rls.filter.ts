@@ -19,9 +19,14 @@ export class RlsFilter {
     }
 
     if (user.rol === 'docente') {
+      // user.personaId = idPersona guardado en asignacion.instructor
+      // user.sub       = idUsuario (tabla usuarios) — NO coincide con asignacion.instructor
+      const instructorId = user.personaId ?? user.sub;
       return qb
         .innerJoin(`${alias}.asignaciones`, 'rls_asig')
-        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: instructorId })
+        // Solo asignaciones activas — las desactivadas no dan acceso
+        .andWhere("rls_asig.estado = 'activo'");
     }
 
     throw new ForbiddenException(`Rol '${user.rol}' sin acceso a etapas`);
@@ -44,10 +49,12 @@ export class RlsFilter {
     }
 
     if (user.rol === 'docente') {
+      const instructorId = user.personaId ?? user.sub;
       return qb
         .innerJoin(`${alias}.etapa`, 'rls_etapa')
         .innerJoin('rls_etapa.asignaciones', 'rls_asig')
-        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: instructorId })
+        .andWhere("rls_asig.estado = 'activo'");
     }
 
     throw new ForbiddenException(`Rol '${user.rol}' sin acceso a seguimientos`);
@@ -71,11 +78,13 @@ export class RlsFilter {
     }
 
     if (user.rol === 'docente') {
+      const instructorId = user.personaId ?? user.sub;
       return qb
         .innerJoin(`${alias}.seguimiento`, 'rls_seg')
         .innerJoin('rls_seg.etapa', 'rls_etapa')
         .innerJoin('rls_etapa.asignaciones', 'rls_asig')
-        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: instructorId })
+        .andWhere("rls_asig.estado = 'activo'");
     }
 
     throw new ForbiddenException(`Rol '${user.rol}' sin acceso a bitácoras`);
@@ -99,11 +108,13 @@ export class RlsFilter {
     }
 
     if (user.rol === 'docente') {
+      const instructorId = user.personaId ?? user.sub;
       return qb
         .innerJoin(`${alias}.seguimiento`, 'rls_seg')
         .innerJoin('rls_seg.etapa', 'rls_etapa')
         .innerJoin('rls_etapa.asignaciones', 'rls_asig')
-        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: user.sub });
+        .andWhere('rls_asig.instructor = :rlsUserId', { rlsUserId: instructorId })
+        .andWhere("rls_asig.estado = 'activo'");
     }
 
     throw new ForbiddenException(`Rol '${user.rol}' sin acceso a observaciones`);
@@ -118,9 +129,11 @@ export class RlsFilter {
     if (user.rol === 'admin') return qb;
 
     if (user.rol === 'docente') {
-      return qb.andWhere(`${alias}.instructor = :rlsUserId`, {
-        rlsUserId: user.sub,
-      });
+      const instructorId = user.personaId ?? user.sub;
+      return qb
+        .andWhere(`${alias}.instructor = :rlsUserId`, { rlsUserId: instructorId })
+        // Solo asignaciones activas — las desactivadas no son visibles
+        .andWhere(`${alias}.estado = 'activo'`);
     }
 
     if (user.rol === 'estudiante') {

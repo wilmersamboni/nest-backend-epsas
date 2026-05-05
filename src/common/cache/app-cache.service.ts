@@ -16,9 +16,11 @@ export class AppCacheService {
     const rol      = user?.rol      ?? 'anon';
     const sub      = user?.sub      ?? 'anon';
 
-    // Admin e instructor: caché por centro + rol
-    // Aprendiz: caché individual por sub (cada uno ve datos distintos)
-    const scope = rol === 'estudiante' ? sub : `${centroId}:${rol}`;
+    // Admin: caché compartida por centro + rol (todos los admins ven lo mismo)
+    // Docente/Estudiante: caché individual por sub (cada uno ve sus propios datos via RLS)
+    const scope = (rol === 'estudiante' || rol === 'docente')
+      ? `${centroId}:${sub}`
+      : `${centroId}:${rol}`;
     return `${resource}:${scope}${suffix ? ':' + suffix : ''}`;
   }
 
@@ -79,20 +81,21 @@ export class AppCacheService {
 
     // ── Rama 3: borrar patrones conocidos por rol ───────────────────────────
     try {
-      const roles    = ['admin', 'docente', 'instructor', 'estudiante'];
+      // Solo admin usa clave compartida por rol; docente y estudiante usan sub individual
+      const rolesCompartidos = ['admin'];
       const suffixes = ['', ':rel:', ':matricula:'];
       const deletes: Promise<any>[] = [];
 
-      for (const r of roles) {
-        // clave sin sufijo (findAll)
+      for (const r of rolesCompartidos) {
         deletes.push(this.cache.del(`${resource}:${centroId}:${r}`));
-        // claves con sufijos conocidos (cobertura amplia sin conocer los IDs exactos)
         for (const s of suffixes.slice(1)) {
-          // Intentar borrar la clave raíz del sufijo si existiera sin ID
           deletes.push(this.cache.del(`${resource}:${centroId}:${r}${s}`));
         }
       }
-      if (user?.sub) deletes.push(this.cache.del(`${resource}:${user.sub}`));
+      // Clave individual del usuario actual (docente o estudiante)
+      if (user?.sub) {
+        deletes.push(this.cache.del(`${resource}:${centroId}:${user.sub}`));
+      }
       await Promise.all(deletes);
     } catch { /* ignorar */ }
 
