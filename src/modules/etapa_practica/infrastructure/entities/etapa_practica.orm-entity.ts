@@ -3,6 +3,7 @@ import { EmpresaOrmEntity } from 'src/modules/empresa/infrastructure/entities/em
 import { ModalidadOrmEntity } from 'src/modules/modalidad/infrastructure/entities/modalidad.orm-entity';
 import { SeguimientoOrmEntity } from 'src/modules/seguimientos/infrastructure/entities/seguimiento.orm-entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
+import { DocumentoOrmEntity } from 'src/modules/documentos-practica/infrastructure/entities/documento-practica.orm-entity';
 
 @Entity()
 export class EtapaPracticaOrmEntity {
@@ -44,4 +45,7 @@ export class EtapaPracticaOrmEntity {
 
   @OneToMany(() => SeguimientoOrmEntity, (s) => s.etapa)
   seguimientos: SeguimientoOrmEntity[];
+
+  @OneToMany(() => DocumentoOrmEntity, (d) => d.etapa)
+documentos: DocumentoOrmEntity[];
 }

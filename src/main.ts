@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Asegurar que los directorios de uploads existan al iniciar
-['uploads/bitacoras', 'uploads/actas', 'uploads/observaciones'].forEach((dir) => {
+['uploads/bitacoras', 'uploads/actas', 'uploads/observaciones', 'uploads/documentos'].forEach((dir) => {
   const full = path.join(process.cwd(), dir);
   if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
 });

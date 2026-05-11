@@ -14,6 +14,7 @@ import { BitacorasModule } from './modules/bitacoras/bitacoras.module';
 import { ObservacionesModule } from './modules/observaciones/observaciones.module';
 import { EtapaPracticaModule } from './modules/etapa_practica/etapa_practica.module';
 import { FormatosModule } from './modules/formatos/formatos.module';
+import { DocumentosModule } from './modules/documentos-practica/documento-practica.module';
 import { RlsSubscriber } from './database/rls.subscriber';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
@@ -53,6 +54,7 @@ import { AppCacheService } from './common/cache/app-cache.service';
     BitacorasModule,
     ObservacionesModule,
     FormatosModule,
+    DocumentosModule,
 
     CacheModule.registerAsync({
       isGlobal: true,
