@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EtapaPractica } from '../../domain/entities/etapa_practica.entity';
 import { IEtapaPracticaRepository } from '../../domain/ports/etapa_practica.repository.port';
@@ -7,14 +6,17 @@ import { EtapaPracticaOrmEntity } from '../entities/etapa_practica.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository {
   constructor(
-    @InjectRepository(EtapaPracticaOrmEntity)
-    private readonly orm: Repository<EtapaPracticaOrmEntity>,
     private readonly cache: AppCacheService,
   ) {}
+
+  private get orm(): Repository<EtapaPracticaOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(EtapaPracticaOrmEntity);
+  }
 
   async create(data: any): Promise<EtapaPractica> {
     const entity = this.orm.create({
