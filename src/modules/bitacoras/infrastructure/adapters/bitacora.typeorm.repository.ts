@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bitacora } from '../../domain/entities/bitacora.entity';
 import { IBitacoraRepository } from '../../domain/ports/bitacora.repository.port';
@@ -7,14 +6,17 @@ import { BitacoraOrmEntity } from '../entities/bitacora.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class BitacoraTypeOrmRepository implements IBitacoraRepository {
   constructor(
-    @InjectRepository(BitacoraOrmEntity)
-    private readonly orm: Repository<BitacoraOrmEntity>,
     private readonly cache: AppCacheService,
   ) {}
+
+  private get orm(): Repository<BitacoraOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(BitacoraOrmEntity);
+  }
 
   async create(
     data: Partial<Bitacora> & { seguimiento: { id: string } },

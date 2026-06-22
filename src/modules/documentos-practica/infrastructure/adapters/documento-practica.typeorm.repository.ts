@@ -1,18 +1,19 @@
 // infrastructure/adapters/documento.typeorm.repository.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IDocumentoRepository } from '../../domain/ports/documento-practica.repository';
 import { Documento } from '../../domain/entities/documento-practica.entity';
 import { DocumentoOrmEntity } from '../entities/documento-practica.orm-entity';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class DocumentoTypeOrmRepository implements IDocumentoRepository {
 
-  constructor(
-    @InjectRepository(DocumentoOrmEntity)
-    private readonly orm: Repository<DocumentoOrmEntity>,
-  ) {}
+  constructor() {}
+
+  private get orm(): Repository<DocumentoOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(DocumentoOrmEntity);
+  }
 
   async guardarVarios(documentos: Partial<Documento>[]): Promise<Documento[]> {
     const entidades = this.orm.create(documentos as any[]);

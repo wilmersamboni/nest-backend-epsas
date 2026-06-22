@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asignacion } from '../../domain/entities/asignacion.entity';
 import { IAsignacionRepository } from '../../domain/ports/asignacion.repository.port';
@@ -7,14 +6,17 @@ import { AsignacionOrmEntity } from '../entities/asignacion.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class AsignacionTypeOrmRepository implements IAsignacionRepository {
   constructor(
-    @InjectRepository(AsignacionOrmEntity)
-    private readonly orm: Repository<AsignacionOrmEntity>,
     private readonly cache: AppCacheService,
   ) {}
+
+  private get orm(): Repository<AsignacionOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(AsignacionOrmEntity);
+  }
 
   async create(
     data: Partial<Asignacion> & { etapa: { id: string } },

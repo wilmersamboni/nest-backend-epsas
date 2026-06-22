@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Seguimiento } from '../../domain/entities/seguimiento.entity';
 import { ISeguimientoRepository } from '../../domain/ports/seguimiento.repository.port';
@@ -7,14 +6,17 @@ import { SeguimientoOrmEntity } from '../entities/seguimiento.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   constructor(
-    @InjectRepository(SeguimientoOrmEntity)
-    private readonly orm: Repository<SeguimientoOrmEntity>,
     private readonly cache: AppCacheService,
   ) {}
+
+  private get orm(): Repository<SeguimientoOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(SeguimientoOrmEntity);
+  }
 
   async create(data: any): Promise<Seguimiento> {
     const entity = this.orm.create({

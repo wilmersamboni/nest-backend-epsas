@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 
 // Application
@@ -10,7 +9,6 @@ import { EMPRESA_REPOSITORY_PORT } from './domain/ports/empresa.repository.port'
 import { MUNICIPIO_SERVICE_PORT } from './domain/ports/municipio.service.port';
 
 // Infrastructure
-import { EmpresaOrmEntity } from './infrastructure/entities/empresa.orm-entity';
 import { EmpresaTypeOrmRepository } from './infrastructure/adapters/empresa.typeorm.repository';
 import { MunicipioHttpAdapter } from './infrastructure/adapters/municipio.http.adapter';
 import { EmpresaController } from './infrastructure/http/empresa.controller';
@@ -18,10 +16,7 @@ import { AppCacheService } from 'src/common/cache/app-cache.service';
  
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([EmpresaOrmEntity]),
-    HttpModule,
-  ],
+  imports: [HttpModule],
   controllers: [EmpresaController],
   providers: [
     EmpresaService,

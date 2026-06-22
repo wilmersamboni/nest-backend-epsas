@@ -1,13 +1,15 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { IPersonaServicePort } from '../../domain/ports/persona.service.port';
 
 @Injectable()
 export class PersonaHttpAdapter implements IPersonaServicePort {
-  private readonly PERSONA_API_URL = 'http://localhost:3000/api/personas';
-
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async buscarPersona(idPersona: string, token: string): Promise<any | null> {
   try {
@@ -17,7 +19,7 @@ export class PersonaHttpAdapter implements IPersonaServicePort {
       : `Bearer ${token}`;
 
     const response = await firstValueFrom(
-      this.httpService.get(`${this.PERSONA_API_URL}/${idPersona}`, {
+      this.httpService.get(`${this.configService.get('ERP_API_URL')}/personas/${idPersona}`, {
         headers: { Authorization: bearerToken },
       }),
     );

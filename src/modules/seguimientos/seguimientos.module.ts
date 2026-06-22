@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { SeguimientosService } from './application/seguimientos.service';
 import { SeguimientosController } from './infrastructure/http/seguimientos.controller';
-import { SeguimientoOrmEntity } from './infrastructure/entities/seguimiento.orm-entity';
 import { SeguimientoTypeOrmRepository } from './infrastructure/adapters/seguimiento.typeorm.repository';
 import { MatriculaHttpAdapter } from './infrastructure/adapters/matricula.http.adapter';
 import { SEGUIMIENTO_REPOSITORY_PORT } from './domain/ports/seguimiento.repository.port';
@@ -11,7 +9,7 @@ import { MATRICULA_SERVICE_PORT } from './domain/ports/matricula.service.port';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SeguimientoOrmEntity]), HttpModule],
+  imports: [HttpModule],
   controllers: [SeguimientosController],
   providers: [
     SeguimientosService,

@@ -1,6 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
-import { RequestContextService } from '../common/rls/request-context';
+import { firstValueFrom } from 'rxjs';
+
+import { RlsSubscriber } from './rls.subscriber';
 
 // ── Entidades ORM de EPSAS ────────────────────────────────────────────────────
 import { AsignacionOrmEntity }     from '../modules/asignaciones/infrastructure/entities/asignacion.orm-entity';
@@ -27,120 +31,74 @@ const EPSAS_ENTITIES = [
   ConfiguracionPractica,
 ];
 
-// Forma del objeto que devuelve GET /api/admin/tenants/slug/:slug en el ERP
-interface TenantDto {
-  id: string;
-  nombre: string;
-  slug: string;
-  dominio: string;
-  estado: string;
-  epsasDbName: string;
-  epsasDbHost?: string;
-  epsasDbPort?: number;
-}
-
 @Injectable()
 export class EpsasDataSourceFactory {
-  private readonly dataSources = new Map<string, DataSource>();
   private readonly logger = new Logger(EpsasDataSourceFactory.name);
+  private readonly dataSources = new Map<string, DataSource>();
 
-  async getDataSource(slug: string): Promise<DataSource> {
-    if (slug === 'master') {
-      throw new BadRequestException("El slug 'master' está reservado");
-    }
+  constructor(
+    private readonly http: HttpService,
+    private readonly config: ConfigService,
+  ) {}
 
+  async getDataSource(slug: string, token?: string): Promise<DataSource> {
     const cached = this.dataSources.get(slug);
-    if (cached?.isInitialized) return cached;
+    if (cached) return cached;
 
-    const tenant = await this.fetchTenantFromErp(slug);
+    const baseUrl = this.config.get<string>('ERP_API_URL');
+    let tenant: any;
 
-    if (tenant.estado !== 'activo') {
-      throw new NotFoundException(`Tenant '${slug}' no está activo`);
+    try {
+      // Preferir token de servicio (ERP_SERVICE_TOKEN) para la llamada
+      // servicio-a-servicio. Si no está configurado, reenviar el JWT del usuario.
+      const serviceToken = this.config.get<string>('ERP_SERVICE_TOKEN');
+      const authToken = serviceToken ?? token;
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+      const response = await firstValueFrom(
+        this.http.get(`${baseUrl}/admin/tenants/slug/${slug}`, { headers }),
+      );
+      tenant = response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        throw new NotFoundException(`Tenant no encontrado: ${slug}`);
+      }
+      throw err;
     }
 
-    const dataSource = new DataSource({
+    if (!tenant || tenant.activo === false) {
+      throw new NotFoundException(`Tenant no encontrado: ${slug}`);
+    }
+
+    const ds = new DataSource({
       type: 'postgres',
-      host:     tenant.epsasDbHost ?? process.env.DB_HOST ?? 'localhost',
-      port:     tenant.epsasDbPort ?? parseInt(process.env.DB_PORT ?? '5432'),
-      username: process.env.EPSAS_DB_USER,
-      password: process.env.EPSAS_DB_PASSWORD,
+      host:     tenant.epsasDbHost ?? this.config.get<string>('DB_HOST'),
+      port:     tenant.epsasDbPort ?? parseInt(this.config.get<string>('DB_PORT') ?? '5432'),
+      username: this.config.get<string>('DB_USERNAME'),
+      password: this.config.get<string>('DB_PASSWORD'),
       database: tenant.epsasDbName,
-      synchronize: process.env.NODE_ENV !== 'production',
+      synchronize: this.config.get<string>('NODE_ENV') !== 'production',
       entities: EPSAS_ENTITIES,
     });
 
-    await dataSource.initialize();
+    await ds.initialize();
 
-    // Replica el comportamiento de RlsSubscriber: inyecta variables de sesión
-    // en cada conexión adquirida del pool para que las políticas RLS funcionen.
-    this.registerRlsHook(dataSource, slug);
+    // Instanciamos RlsSubscriber pasándole directamente el DataSource del tenant.
+    // @InjectDataSource() es solo metadato de DI — en runtime el constructor
+    // recibe ds y llama hookConnectionPool() sobre el pool de esta conexión.
+    new (RlsSubscriber as any)(ds);
 
-    this.dataSources.set(slug, dataSource);
-    this.logger.log(`DataSource inicializado para tenant '${slug}' → DB: ${tenant.epsasDbName}`);
-    return dataSource;
+    this.dataSources.set(slug, ds);
+    this.logger.log(`DataSource inicializado para tenant: ${slug}`);
+    return ds;
   }
 
   async closeAll(): Promise<void> {
     for (const [slug, ds] of this.dataSources) {
-      if (ds.isInitialized) await ds.destroy();
-      this.dataSources.delete(slug);
-      this.logger.log(`DataSource cerrado para tenant '${slug}'`);
-    }
-  }
-
-  // ── HTTP hacia el ERP ───────────────────────────────────────────────────────
-
-  private async fetchTenantFromErp(slug: string): Promise<TenantDto> {
-    const base = (process.env.ERP_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-    const url  = `${base}/api/admin/tenants/slug/${encodeURIComponent(slug)}`;
-
-    let response: Response;
-    try {
-      response = await fetch(url);
-    } catch (err) {
-      throw new NotFoundException(
-        `No se pudo contactar al ERP (${url}): ${(err as Error).message}`,
-      );
-    }
-
-    if (response.status === 404) {
-      throw new NotFoundException(`Tenant '${slug}' no encontrado en el ERP`);
-    }
-
-    if (!response.ok) {
-      throw new NotFoundException(
-        `ERP respondió ${response.status} al consultar el tenant '${slug}'`,
-      );
-    }
-
-    return response.json() as Promise<TenantDto>;
-  }
-
-  // ── RLS pool hook ───────────────────────────────────────────────────────────
-
-  private registerRlsHook(dataSource: DataSource, slug: string): void {
-    const pool = (dataSource.driver as any).master;
-    if (!pool) {
-      this.logger.warn(`[RLS] Pool no encontrado para tenant '${slug}'`);
-      return;
-    }
-
-    pool.on('acquire', async (client: any) => {
-      const user = RequestContextService.getUser();
-      if (!user) return;
-      try {
-        await client.query(
-          `SELECT
-            set_config('app.current_user_id',   $1, false),
-            set_config('app.current_user_rol',  $2, false),
-            set_config('app.current_centro_id', $3, false)`,
-          [user.sub, user.rol, user.centroId],
-        );
-      } catch (e) {
-        this.logger.warn(`[RLS] acquire hook error (tenant=${slug}): ${(e as Error).message}`);
+      if (ds.isInitialized) {
+        await ds.destroy();
+        this.logger.log(`DataSource destruido para tenant: ${slug}`);
       }
-    });
-
-    this.logger.log(`[RLS] Pool hook registrado para tenant '${slug}'`);
+    }
+    this.dataSources.clear();
   }
 }

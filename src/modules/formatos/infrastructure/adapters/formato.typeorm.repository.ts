@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FormatoOrmEntity } from '../entities/formato.orm-entity';
 import { IFormatoRepository } from '../../domain/ports/formato.repository.port';
 import { Formato } from '../../domain/entities/formato.entity';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class FormatoTypeormRepository implements IFormatoRepository {
-  constructor(
-    @InjectRepository(FormatoOrmEntity)
-    private readonly repo: Repository<FormatoOrmEntity>,
-  ) {}
+  constructor() {}
+
+  private get orm(): Repository<FormatoOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(FormatoOrmEntity);
+  }
 
   // ── Mappers ────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ export class FormatoTypeormRepository implements IFormatoRepository {
   // ── Operaciones ────────────────────────────────────────────────────
 
   async create(data: Partial<Formato>): Promise<Formato> {
-    const entity = this.repo.create({
+    const entity = this.orm.create({
       centroId:        data.centroId,
       sedeId:          data.sedeId ?? null,
       tipo:            data.tipo,
@@ -48,22 +49,22 @@ export class FormatoTypeormRepository implements IFormatoRepository {
       subido_por:      data.subido_por ?? null,
       etapa:           data.etapa ? ({ id: data.etapa.id } as any) : undefined,
     });
-    const saved = await this.repo.save(entity);
+    const saved = await this.orm.save(entity);
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<Formato[]> {
-    const rows = await this.repo.find({ relations: ['etapa'] });
+    const rows = await this.orm.find({ relations: ['etapa'] });
     return rows.map(r => this.toDomain(r));
   }
 
   async findById(id: string): Promise<Formato | null> {
-    const row = await this.repo.findOne({ where: { id }, relations: ['etapa'] });
+    const row = await this.orm.findOne({ where: { id }, relations: ['etapa'] });
     return row ? this.toDomain(row) : null;
   }
 
   async findByEtapaId(etapaId: string): Promise<Formato[]> {
-    const rows = await this.repo
+    const rows = await this.orm
       .createQueryBuilder('f')
       .leftJoinAndSelect('f.etapa', 'etapa')
       .where('etapa.id = :etapaId', { etapaId })
@@ -73,7 +74,7 @@ export class FormatoTypeormRepository implements IFormatoRepository {
   }
 
   async findByTipo(etapaId: string, tipo: string): Promise<Formato[]> {
-    const rows = await this.repo
+    const rows = await this.orm
       .createQueryBuilder('f')
       .leftJoinAndSelect('f.etapa', 'etapa')
       .where('etapa.id = :etapaId', { etapaId })
@@ -84,17 +85,17 @@ export class FormatoTypeormRepository implements IFormatoRepository {
   }
 
   async save(formato: Partial<Formato>): Promise<Formato> {
-    const saved = await this.repo.save(formato as any);
+    const saved = await this.orm.save(formato as any);
     return this.toDomain(saved);
   }
 
   async deleteById(id: string): Promise<number> {
-    const result = await this.repo.delete(id);
+    const result = await this.orm.delete(id);
     return result.affected ?? 0;
   }
 
   async updateEstado(id: string, estado: string): Promise<void> {
-    await this.repo
+    await this.orm
       .createQueryBuilder()
       .update(FormatoOrmEntity)
       .set({ estado })

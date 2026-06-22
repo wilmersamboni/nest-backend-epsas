@@ -1,19 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Modalidad } from '../../domain/entities/modalidad.entity';
 import { IModalidadRepository } from '../../domain/ports/modalidad.repository.port';
 import { ModalidadOrmEntity } from '../entities/modalidad.orm-entity';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { AppCacheService } from 'src/common/cache/app-cache.service';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class ModalidadTypeOrmRepository implements IModalidadRepository {
   constructor(
-    @InjectRepository(ModalidadOrmEntity)
-    private readonly orm: Repository<ModalidadOrmEntity>,
     private readonly cache: AppCacheService,
   ) {}
+
+  private get orm(): Repository<ModalidadOrmEntity> {
+    return RequestContextService.getDataSource().getRepository(ModalidadOrmEntity);
+  }
 
   async create(data: Partial<Modalidad>): Promise<Modalidad> {
     const entity = this.orm.create({

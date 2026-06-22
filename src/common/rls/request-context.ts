@@ -68,4 +68,8 @@ export const RequestContextService = {
   hasContext(): boolean {
     return storage.getStore() !== undefined;
   },
+
+  hasDataSource(): boolean {
+    return storage.getStore()?.dataSource !== undefined;
+  },
 };

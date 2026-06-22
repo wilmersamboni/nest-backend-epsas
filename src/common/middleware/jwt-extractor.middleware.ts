@@ -24,18 +24,24 @@ export class JwtExtractorMiddleware implements NestMiddleware {
     // ── 1. Extraer slug (x-tenant header o subdominio) ────────────────────────
     const slug = this.resolveSlug(req);
 
+    // Token crudo disponible antes del decode — se reusa en step 2 para
+    // autenticar la llamada al ERP (GET /admin/tenants/slug/:slug).
+    const earlyToken: string | undefined =
+      req.cookies?.token ??
+      req.headers.authorization?.replace(/^Bearer\s+/i, '');
+
     // ── 2. Resolver DataSource del tenant ─────────────────────────────────────
     let dataSource: DataSource | undefined;
     if (slug) {
       try {
-        dataSource = await this.epsasFactory.getDataSource(slug);
+        dataSource = await this.epsasFactory.getDataSource(slug, earlyToken);
       } catch (err) {
         if (err instanceof NotFoundException || err instanceof BadRequestException) {
-          res.status(404).json({ message: `Tenant '${slug}' no encontrado` });
+          res.status(404).json({ message: `Tenant no encontrado: ${slug}` });
           return;
         }
         this.logger.error(`Error al conectar con el tenant '${slug}': ${(err as Error).message}`);
-        res.status(500).json({ message: 'Error al conectar con el tenant' });
+        res.status(503).json({ message: 'Error al conectar con la base de datos del tenant' });
         return;
       }
     }
