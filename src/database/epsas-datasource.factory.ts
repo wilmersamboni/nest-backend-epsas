@@ -35,11 +35,16 @@ const EPSAS_ENTITIES = [
 export class EpsasDataSourceFactory {
   private readonly logger = new Logger(EpsasDataSourceFactory.name);
   private readonly dataSources = new Map<string, DataSource>();
+  private readonly centroIds   = new Map<string, string>();
 
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {}
+
+  getCentroId(slug: string): string | undefined {
+    return this.centroIds.get(slug);
+  }
 
   async getDataSource(slug: string, token?: string): Promise<DataSource> {
     const cached = this.dataSources.get(slug);
@@ -49,13 +54,10 @@ export class EpsasDataSourceFactory {
     let tenant: any;
 
     try {
-      // Preferir token de servicio (ERP_SERVICE_TOKEN) para la llamada
-      // servicio-a-servicio. Si no está configurado, reenviar el JWT del usuario.
-      const serviceToken = this.config.get<string>('ERP_SERVICE_TOKEN');
-      const authToken = serviceToken ?? token;
-      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+      const apiKey = this.config.get<string>('ERP_API_KEY');
+      const headers: Record<string, string> = apiKey ? { 'x-api-key': apiKey } : {};
       const response = await firstValueFrom(
-        this.http.get(`${baseUrl}/admin/tenants/slug/${slug}`, { headers }),
+        this.http.get(`${baseUrl}/admin/service/tenant-slug/${slug}`, { headers }),
       );
       tenant = response.data;
     } catch (err: any) {
@@ -86,6 +88,10 @@ export class EpsasDataSourceFactory {
     // @InjectDataSource() es solo metadato de DI — en runtime el constructor
     // recibe ds y llama hookConnectionPool() sobre el pool de esta conexión.
     new (RlsSubscriber as any)(ds);
+
+    if (tenant.centroId) {
+      this.centroIds.set(slug, tenant.centroId);
+    }
 
     this.dataSources.set(slug, ds);
     this.logger.log(`DataSource inicializado para tenant: ${slug}`);

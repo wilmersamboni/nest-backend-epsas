@@ -52,7 +52,12 @@ export class JwtExtractorMiddleware implements NestMiddleware {
       req.headers.authorization?.split(' ')[1];
 
     const decoded = raw ? this.decode(raw) : null;
-    const centroId = req.headers['x-centro-id'] as string | undefined;
+    // El factory tiene el UUID real del CentroFormacion (resuelto del ERP).
+    // El header X-Centro-ID es fallback para compatibilidad o cuando no hay slug.
+    const centroId =
+      (slug ? this.epsasFactory.getCentroId(slug) : undefined) ??
+      (req.headers['x-centro-id'] as string | undefined) ??
+      undefined;
     const sedeId   = req.headers['x-sede-id']   as string | undefined;
     const cargo    = req.headers['x-cargo']      as string | undefined;
 
