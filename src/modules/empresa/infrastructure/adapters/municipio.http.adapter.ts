@@ -14,13 +14,15 @@ export class MunicipioHttpAdapter implements IMunicipioServicePort {
   constructor(private readonly httpService: HttpService) {}
 
   async buscarMunicipio(idMunicipio: string, _token?: string): Promise<any | null> {
-    const token = RequestContextService.getRawToken();
+    const token  = RequestContextService.getRawToken();
+    const slug   = RequestContextService.get()?.slug ?? null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (slug)  headers['x-tenant']      = slug;
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.MUNICIPIO_API_URL}/${idMunicipio}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        this.httpService.get(`${this.MUNICIPIO_API_URL}/${idMunicipio}`, { headers }),
       );
       return response.data;
     } catch (error) {

@@ -4,7 +4,12 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsNumber,
+  Min,
+  Max,
+  IsNumberString,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateEmpresaDto {
   @IsString()
@@ -40,13 +45,19 @@ export class CreateEmpresaDto {
   @IsIn(['activo', 'inactivo'])
   estado: string;
 
-  @IsString()
-  @IsNotEmpty()
-  longitud: number;
+  @IsOptional()
+  @Transform(({ value }) => value !== '' && value != null ? parseFloat(value) : undefined)
+  @IsNumber({}, { message: 'longitud debe ser un número' })
+  @Min(-180, { message: 'longitud mínima: -180' })
+  @Max(180,  { message: 'longitud máxima: 180'  })
+  longitud?: number;
 
-  @IsString()
-  @IsNotEmpty()
-  latitud: number;
+  @IsOptional()
+  @Transform(({ value }) => value !== '' && value != null ? parseFloat(value) : undefined)
+  @IsNumber({}, { message: 'latitud debe ser un número' })
+  @Min(-90, { message: 'latitud mínima: -90' })
+  @Max(90,  { message: 'latitud máxima: 90'  })
+  latitud?: number;
 
   @IsIn(['unipersonal', 'empresa'])
   tipo: string;

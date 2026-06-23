@@ -12,6 +12,7 @@ import { CreateEmpresaDto } from '../infrastructure/http/dto/create-empresa.dto'
 import { UpdateEmpresaDto } from '../infrastructure/http/dto/update-empresa.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class EmpresaService {
@@ -28,13 +29,13 @@ export class EmpresaService {
       throw new UnauthorizedException('No se recibió token del cliente');
     }
 
+    const slug = RequestContextService.get()?.slug ?? null;
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (slug) headers['x-tenant'] = slug;
+
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.MUNICIPIO_API_URL}/${idMunicipio}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
+        this.httpService.get(`${this.MUNICIPIO_API_URL}/${idMunicipio}`, { headers }),
       );
 
       return response.data;

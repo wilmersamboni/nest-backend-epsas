@@ -32,10 +32,10 @@ export class EmpresaOrmEntity {
   @Column('text', { default: 'activo' })
   estado: string;
 
-  @Column('decimal', { precision: 10, scale: 7, nullable: true })
+  @Column('double precision', { nullable: true })
   longitud: number;
 
-  @Column('decimal', { precision: 10, scale: 7, nullable: true })
+  @Column('double precision', { nullable: true })
   latitud: number;
 
   @Column('text')
