@@ -62,9 +62,10 @@ export class JwtExtractorMiddleware implements NestMiddleware {
     const cargo    = req.headers['x-cargo']      as string | undefined;
 
     const cargoMap: Record<string, string> = {
-      administrador: 'admin',
-      instructor:    'docente',
-      aprendiz:      'estudiante',
+      administrador:     'admin',
+      administrador_erp: 'admin',
+      instructor:        'docente',
+      aprendiz:          'estudiante',
     };
 
     const user =
@@ -110,9 +111,10 @@ export class JwtExtractorMiddleware implements NestMiddleware {
       const payload = JSON.parse(json);
 
       const cargoMap: Record<string, string> = {
-        administrador: 'admin',
-        instructor:    'docente',
-        aprendiz:      'estudiante',
+        administrador:     'admin',
+        administrador_erp: 'admin',
+        instructor:        'docente',
+        aprendiz:          'estudiante',
       };
 
       const cargoRaw = payload.cargo ?? '';
