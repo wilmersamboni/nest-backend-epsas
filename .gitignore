@@ -57,4 +57,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 
 uploads/
-postgres_epsas/
+postgres_epsas/global/
+postgres_epsas/pg_wal/
+postgres_epsas/pg_xact/
+postgres_epsas/base/
