@@ -11,7 +11,7 @@ export class EmpresaOrmEntity {
   @Column('uuid', { nullable: true })
   sedeId: string | null;
 
-  @Column('int', { unique: true })
+  @Column('text', { unique: true })
   nit: string;
 
   @Column('text')

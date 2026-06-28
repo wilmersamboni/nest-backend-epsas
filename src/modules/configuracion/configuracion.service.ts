@@ -11,29 +11,24 @@ export class ConfiguracionService {
     return RequestContextService.getDataSource().getRepository(ConfiguracionPractica);
   }
 
-  /** Devuelve la configuración global. Si no existe la fila, la crea con valores por defecto. */
+  /** Devuelve la configuración global. Garantiza la fila singleton sin race condition. */
   async getConfig(): Promise<{ minAvance: number }> {
-    let config = await this.orm.findOne({ where: { id: 1 } });
-    if (!config) {
-      config = this.orm.create({ id: 1, min_avance: 70 });
-      await this.orm.save(config);
-    }
-    return { minAvance: Number(config.min_avance) };
+    // INSERT con valor por defecto solo si id=1 no existe — nunca sobreescribe
+    await this.orm
+      .createQueryBuilder()
+      .insert()
+      .into(ConfiguracionPractica)
+      .values({ id: 1, min_avance: 70 })
+      .orIgnore()
+      .execute();
+    const config = await this.orm.findOne({ where: { id: 1 } });
+    return { minAvance: Number(config!.min_avance) };
   }
 
   /** Actualiza el porcentaje mínimo de avance requerido. */
   async updateConfig(minAvance: number): Promise<{ minAvance: number }> {
-    const exists = await this.orm.findOne({ where: { id: 1 } });
-    if (exists) {
-      await this.orm
-        .createQueryBuilder()
-        .update(ConfiguracionPractica)
-        .set({ min_avance: minAvance })
-        .where('id = :id', { id: 1 })
-        .execute();
-    } else {
-      await this.orm.save({ id: 1, min_avance: minAvance });
-    }
-    return { minAvance };
+    await this.orm.upsert({ id: 1, min_avance: minAvance }, ['id']);
+    const saved = await this.orm.findOne({ where: { id: 1 } });
+    return { minAvance: Number(saved!.min_avance) };
   }
 }

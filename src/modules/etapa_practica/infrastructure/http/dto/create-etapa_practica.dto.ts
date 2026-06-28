@@ -1,5 +1,5 @@
 import {
-  IsUUID, IsDateString, IsString, IsNotEmpty,
+  IsUUID, IsDate, IsString, IsNotEmpty,
   IsIn, IsOptional, IsInt, IsNumber, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -9,11 +9,13 @@ export class CreateAsignacionEnEtapaDto {
   @IsNotEmpty()
   instructor: string;
 
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
   fecha_inicio: Date;
 
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
   fecha_fin: Date;
 
@@ -39,11 +41,13 @@ export class CreateEtapaPracticaDto {
   @IsNotEmpty()
   matriculaId: string;
 
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
   fecha_inicio: Date;
 
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
   fecha_fin: Date;
 

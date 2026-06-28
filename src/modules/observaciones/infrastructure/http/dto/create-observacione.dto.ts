@@ -1,13 +1,15 @@
-import { IsDate, IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
+import { IsDate, IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
+import { Type } from 'class-transformer';
 
 export class CreateObservacioneDto {
     @IsUUID()
     @IsNotEmpty()
     seguimientoId: string
 
-    @IsDateString()
+    @Type(() => Date)
+    @IsDate()
     @IsNotEmpty()
-    fecha:Date;
+    fecha: Date;
 
     @IsString()
     @IsNotEmpty()

@@ -6,8 +6,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateObservacioneDto } from '../infrastructure/http/dto/create-observacione.dto';
-import { UpdateObservacioneDto } from '../infrastructure/http/dto/update-observacione.dto';
+import {
+  CreateObservacionCommand,
+  CreateObservacionParaEtapaCommand,
+} from './dto/create-observacion.command';
+import { UpdateObservacionCommand } from './dto/update-observacion.command';
 import { OBSERVACION_REPOSITORY_PORT } from '../domain/ports/observacion.repository.port';
 import type { IObservacionRepository } from '../domain/ports/observacion.repository.port';
 import { SeguimientosService } from 'src/modules/seguimientos/application/seguimientos.service';
@@ -22,7 +25,7 @@ export class ObservacionesService {
     private readonly seguimientosService: SeguimientosService,
   ) {}
 
-  async create(dto: CreateObservacioneDto) {
+  async create(dto: CreateObservacionCommand) {
     try {
       const { seguimientoId, ...data } = dto;
       return await this.observacionRepository.create({
@@ -34,14 +37,7 @@ export class ObservacionesService {
     }
   }
 
-  /**
-   * Crea una observación ligada al seguimiento más reciente de una etapa.
-   * Lanza 400 si la etapa no tiene ningún seguimiento registrado.
-   */
-  async createParaEtapa(
-    etapaId: string,
-    data: { descripcion: string; persona: string; fecha: string },
-  ) {
+  async createParaEtapa(etapaId: string, data: CreateObservacionParaEtapaCommand) {
     const seguimientos = await this.seguimientosService.findByEtapaId(etapaId);
 
     if (!seguimientos.length) {
@@ -51,31 +47,32 @@ export class ObservacionesService {
       );
     }
 
-    // Usamos el seguimiento más reciente (último en el array devuelto)
-    const ultimo = seguimientos[seguimientos.length - 1] as any;
-    const seguimientoId: string = ultimo.id;
+    // Ordenar por fecha_inicio DESC para tomar el más reciente
+    const sorted = [...seguimientos].sort((a: any, b: any) =>
+      new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime(),
+    );
+    const seguimientoId: string = (sorted[0] as any).id;
 
     try {
       return await this.observacionRepository.create({
-        descripcion: data.descripcion,
-        persona:     data.persona,
-        fecha:       data.fecha,
+        descripcion:    data.descripcion,
+        persona:        data.persona,
+        fecha:          data.fecha,
         evidencia_foto: '',
-        seguimiento: { id: seguimientoId },
+        seguimiento:    { id: seguimientoId },
       });
     } catch (error) {
       this.handleDBExceptions(error);
     }
   }
 
-  /** Lista todas las observaciones de todos los seguimientos de una etapa */
   async findByEtapa(etapaId: string) {
     return this.observacionRepository.findByEtapaId(etapaId);
   }
 
   async findBySeguimiento(seguimientoId: string) {
-  return this.observacionRepository.findBySeguimientoId(seguimientoId);
-}
+    return this.observacionRepository.findBySeguimientoId(seguimientoId);
+  }
 
   async findAll() {
     return this.observacionRepository.findAll();
@@ -87,7 +84,7 @@ export class ObservacionesService {
     return o;
   }
 
-  async update(id: string, dto: UpdateObservacioneDto) {
+  async update(id: string, dto: UpdateObservacionCommand) {
     const observacion = await this.findOne(id);
     try {
       return await this.observacionRepository.save({ ...observacion, ...dto });

@@ -7,15 +7,14 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
-  UploadedFile, 
+  UploadedFile,
   UseInterceptors,
   BadRequestException,
- 
 } from '@nestjs/common';
-import { IsNotEmpty, IsUUID } from 'class-validator';
 import { ObservacionesService } from '../../application/observaciones.service';
 import { CreateObservacioneDto } from './dto/create-observacione.dto';
 import { UpdateObservacioneDto } from './dto/update-observacione.dto';
+import { CreateObservacionParaEtapaDto } from './dto/create-observacion-para-etapa.dto';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -40,12 +39,11 @@ export class ObservacionesController {
         const allowed = /\.(jpg|jpeg|png|webp)$/i;
         cb(null, allowed.test(file.originalname));
       },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   uploadEvidencia(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo inválido o no enviado');
-    // Devuelve la URL pública que ServeStaticModule ya expone en /uploads/...
     return { url: `/uploads/observaciones/${file.filename}` };
   }
 
@@ -55,21 +53,25 @@ export class ObservacionesController {
     return this.observacionesService.create(dto);
   }
 
-  /** Crea una observación en el seguimiento más reciente de la etapa */
   @Post('etapa/:etapaId')
   @Roles('admin', 'docente')
   createParaEtapa(
     @Param('etapaId', ParseUUIDPipe) etapaId: string,
-    @Body() body: { descripcion: string; persona: string; fecha: string },
+    @Body() body: CreateObservacionParaEtapaDto,
   ) {
     return this.observacionesService.createParaEtapa(etapaId, body);
   }
 
-  /** Lista todas las observaciones de todos los seguimientos de una etapa */
   @Get('etapa/:etapaId')
   @Roles('admin', 'docente', 'estudiante')
   findByEtapa(@Param('etapaId', ParseUUIDPipe) etapaId: string) {
     return this.observacionesService.findByEtapa(etapaId);
+  }
+
+  @Get('seguimiento/:seguimientoId')
+  @Roles('admin', 'docente', 'estudiante')
+  findBySeguimiento(@Param('seguimientoId', ParseUUIDPipe) seguimientoId: string) {
+    return this.observacionesService.findBySeguimiento(seguimientoId);
   }
 
   @Get()
@@ -78,22 +80,11 @@ export class ObservacionesController {
     return this.observacionesService.findAll();
   }
 
-
-    @Get('seguimiento/:seguimientoId')
-@Roles('admin', 'docente', 'estudiante')
-findBySeguimiento(
-  @Param('seguimientoId', ParseUUIDPipe) seguimientoId: string
-) {
-  return this.observacionesService.findBySeguimiento(seguimientoId);
-}
-
   @Get(':id')
   @Roles('admin', 'docente', 'estudiante')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.observacionesService.findOne(id);
   }
-
-
 
   @Patch(':id')
   @Roles('admin', 'docente')

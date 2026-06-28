@@ -18,10 +18,18 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     return RequestContextService.getDataSource().getRepository(SeguimientoOrmEntity);
   }
 
-  async create(data: any): Promise<Seguimiento> {
+  async create(
+    data: Partial<Seguimiento> & { etapa: { id: string }; asignacion?: { id: string } },
+  ): Promise<Seguimiento> {
     const entity = this.orm.create({
-      ...data,
-      centroId: TenantFilter.getCurrentCentroId(),
+      actas_pdf:    data.actas_pdf,
+      estado:       data.estado,
+      observacion:  data.observacion,
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin:    data.fecha_fin,
+      etapa:        { id: data.etapa.id } as any,
+      asignacion:   data.asignacion ? ({ id: data.asignacion.id } as any) : undefined,
+      centroId:     TenantFilter.getCurrentCentroId(),
     });
     const saved = await this.orm.save(entity) as unknown as SeguimientoOrmEntity;
     await this.cache.invalidate('seguimientos');
@@ -34,6 +42,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
 
     const qb = this.orm
       .createQueryBuilder('s')
+      .leftJoinAndSelect('s.etapa', 'etapa')
       .leftJoinAndSelect('s.asignacion', 'asignacion');
 
     TenantFilter.apply(qb, 's');
@@ -51,6 +60,7 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
+      .leftJoinAndSelect('s.asignacion', 'asignacion')
       .where('s.id = :id', { id });
 
     TenantFilter.apply(qb, 's');
@@ -63,61 +73,63 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
   }
 
   async save(seguimiento: Seguimiento): Promise<Seguimiento> {
-    // Actualización completa (usada por service.update con DTO parcial).
-    // Solo incluye en SET los campos definidos para no sobreescribir con NULL.
+    const centroId = TenantFilter.getCurrentCentroId();
     const fields: Partial<SeguimientoOrmEntity> = {};
-    if (seguimiento.actas_pdf   !== undefined) fields.actas_pdf   = seguimiento.actas_pdf;
-    if (seguimiento.estado      !== undefined) fields.estado      = seguimiento.estado;
-    if (seguimiento.observacion !== undefined) fields.observacion = seguimiento.observacion;
+    if (seguimiento.actas_pdf    !== undefined) fields.actas_pdf    = seguimiento.actas_pdf;
+    if (seguimiento.estado       !== undefined) fields.estado       = seguimiento.estado;
+    if (seguimiento.observacion  !== undefined) fields.observacion  = seguimiento.observacion;
     if (seguimiento.fecha_inicio !== undefined) fields.fecha_inicio = seguimiento.fecha_inicio;
     if (seguimiento.fecha_fin    !== undefined) fields.fecha_fin    = seguimiento.fecha_fin;
 
     if (Object.keys(fields).length > 0) {
       await this.orm
         .createQueryBuilder()
-        .update()
+        .update(SeguimientoOrmEntity)
         .set(fields)
         .where('id = :id', { id: seguimiento.id })
+        .andWhere('centroId = :centroId', { centroId })
         .execute();
     }
     await this.cache.invalidate('seguimientos');
     return seguimiento;
   }
 
-  /** Cambia únicamente la columna `estado` — no toca ningún otro campo. */
   async updateEstado(id: string, estado: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
-      .update()
+      .update(SeguimientoOrmEntity)
       .set({ estado })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('seguimientos');
   }
 
-  /** Guarda únicamente el nombre del archivo de acta — no toca ningún otro campo. */
   async updateActas(id: string, filename: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
-      .update()
+      .update(SeguimientoOrmEntity)
       .set({ actas_pdf: filename })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('seguimientos');
   }
 
   async remove(seguimiento: Seguimiento): Promise<void> {
-    await this.orm.remove(this.orm.create(seguimiento));
+    const centroId = TenantFilter.getCurrentCentroId();
+    await this.orm.delete({ id: seguimiento.id, centroId });
     await this.cache.invalidate('seguimientos');
   }
 
   async findByEtapaId(etapaId: string): Promise<Seguimiento[]> {
-    // Sin caché: se llama al abrir el modal y necesita datos siempre frescos.
-    // El caché con sufijo tenía invalidación incompleta (igual que bitácoras).
     const qb = this.orm
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.etapa', 'etapa')
-      .where('etapa.id = :etapaId', { etapaId });
+      .where('etapa.id = :etapaId', { etapaId })
+      .orderBy('s.fecha_inicio', 'DESC');
 
     TenantFilter.apply(qb, 's');
     RlsFilter.applySeguimiento(qb, 's');
@@ -158,10 +170,9 @@ export class SeguimientoTypeOrmRepository implements ISeguimientoRepository {
       s.bitacoras = e.bitacoras.map(b => ({
         id: b.id,
         fecha: b.fecha,
-        estado: b.estado
+        estado: b.estado,
       }));
     }
-
     return s;
   }
 }

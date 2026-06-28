@@ -1,21 +1,21 @@
-import {
-  Controller, Get, Patch, Body, ParseFloatPipe,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Body } from '@nestjs/common';
 import { ConfiguracionService } from './configuracion.service';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { UpdateConfiguracionDto } from './dto/update-configuracion.dto';
 
 @Controller('configuracion')
 export class ConfiguracionController {
   constructor(private readonly configuracionService: ConfiguracionService) {}
 
-  /** GET /configuracion — devuelve la configuración global */
   @Get()
+  @Roles('admin', 'docente', 'estudiante')
   getConfig() {
     return this.configuracionService.getConfig();
   }
 
-  /** PATCH /configuracion — actualiza el avance mínimo requerido para crear etapas prácticas */
   @Patch()
-  updateConfig(@Body('minAvance', ParseFloatPipe) minAvance: number) {
-    return this.configuracionService.updateConfig(minAvance);
+  @Roles('admin')
+  updateConfig(@Body() dto: UpdateConfiguracionDto) {
+    return this.configuracionService.updateConfig(dto.minAvance);
   }
 }

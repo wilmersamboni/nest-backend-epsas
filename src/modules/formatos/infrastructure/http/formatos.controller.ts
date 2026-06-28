@@ -56,7 +56,7 @@ export class FormatosController {
 
   // ── POST /formatos  (multipart/form-data) ──────────────────────────
   @Post()
-  @Roles('admin', 'docente', 'docente')
+  @Roles('admin', 'docente')
   @UseInterceptors(FileInterceptor('file', multerOptions))
   create(
     @Body() dto: CreateFormatoDto,
@@ -68,14 +68,14 @@ export class FormatosController {
 
   // ── GET /formatos  ─────────────────────────────────────────────────
   @Get()
-  @Roles('admin', 'docente', 'docente', 'estudiante')
+  @Roles('admin', 'docente', 'estudiante')
   findAll() {
     return this.formatosService.findAll();
   }
 
   // ── GET /formatos/etapa/:etapaId?tipo=contrato ─────────────────────
   @Get('etapa/:etapaId')
-  @Roles('admin', 'docente', 'docente', 'estudiante')
+  @Roles('admin', 'docente', 'estudiante')
   findByEtapa(
     @Param('etapaId', ParseUUIDPipe) etapaId: string,
     @Query('tipo') tipo?: string,
@@ -86,7 +86,7 @@ export class FormatosController {
 
   // ── GET /formatos/:id ──────────────────────────────────────────────
   @Get(':id')
-  @Roles('admin', 'docente', 'docente', 'estudiante')
+  @Roles('admin', 'docente', 'estudiante')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.formatosService.findOne(id);
   }

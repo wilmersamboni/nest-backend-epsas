@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
+import { IsDate, IsIn, IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class CreateAsignacioneDto {
@@ -6,12 +6,12 @@ export class CreateAsignacioneDto {
     @IsNotEmpty()
     instructor: string;
 
-    @IsDateString()
-    @IsNotEmpty()
+    @Type(() => Date)
+    @IsDate()
     fecha_inicio: Date;
 
-    @IsDateString()
-    @IsNotEmpty()
+    @Type(() => Date)
+    @IsDate()
     fecha_fin: Date;
 
     @IsIn(['activo', 'inactivo'])

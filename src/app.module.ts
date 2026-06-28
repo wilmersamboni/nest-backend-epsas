@@ -1,9 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { HttpModule } from '@nestjs/axios';
-import { join } from 'path';
 
 import { EmpresaModule } from './modules/empresa/empresa.module';
 import { ModalidadModule } from './modules/modalidad/module';
@@ -17,6 +15,7 @@ import { FormatosModule } from './modules/formatos/formatos.module';
 import { DocumentosModule } from './modules/documentos-practica/documento-practica.module';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
+import { UploadsController } from './common/controllers/uploads.controller';
 import { RlsGuard } from './common/guards/rls.guard';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
@@ -26,11 +25,6 @@ import { EpsasDataSourceFactory } from './database/epsas-datasource.factory';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
 
     HttpModule,
 
@@ -76,6 +70,7 @@ import { EpsasDataSourceFactory } from './database/epsas-datasource.factory';
       },
     }),
   ],
+  controllers: [UploadsController],
   providers: [
     { provide: APP_GUARD, useClass: RlsGuard },
     // RlsSubscriber eliminado: el hook RLS lo registra EpsasDataSourceFactory

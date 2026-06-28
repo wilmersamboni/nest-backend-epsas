@@ -18,7 +18,7 @@ export class DocumentoTypeOrmRepository implements IDocumentoRepository {
   async guardarVarios(documentos: Partial<Documento>[]): Promise<Documento[]> {
     const entidades = this.orm.create(documentos as any[]);
     const saved = await this.orm.save(entidades);
-    return saved.map(this.toDomain);
+    return saved.map((e) => this.toDomain(e));
   }
 
   async findByEtapaId(etapaId: string): Promise<Documento[]> {
@@ -26,7 +26,7 @@ export class DocumentoTypeOrmRepository implements IDocumentoRepository {
       where: { etapaId },
       order: { creado_en: 'DESC' },
     });
-    return lista.map(this.toDomain);
+    return lista.map((e) => this.toDomain(e));
   }
 
   async findById(id: string): Promise<Documento | null> {

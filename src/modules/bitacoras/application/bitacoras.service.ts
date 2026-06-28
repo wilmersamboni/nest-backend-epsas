@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
-import { CreateBitacoraDto } from '../infrastructure/http/dto/create-bitacora.dto';
-import { UpdateBitacoraDto } from '../infrastructure/http/dto/update-bitacora.dto';
+import { CreateBitacoraCommand } from './dto/create-bitacora.command';
+import { UpdateBitacoraCommand } from './dto/update-bitacora.command';
 import { BITACORA_REPOSITORY_PORT } from '../domain/ports/bitacora.repository.port';
 import type { IBitacoraRepository } from '../domain/ports/bitacora.repository.port';
 
@@ -13,7 +13,7 @@ export class BitacorasService {
     private readonly bitacoraRepository: IBitacoraRepository,
   ) {}
 
-  async create(dto: CreateBitacoraDto) {
+  async create(dto: CreateBitacoraCommand) {
     const { seguimientoId, ...data } = dto;
     return this.bitacoraRepository.create({ ...data, seguimiento: { id: seguimientoId } });
   }
@@ -26,10 +26,16 @@ export class BitacorasService {
     return b;
   }
 
-  async update(id: string, dto: UpdateBitacoraDto) {
+  async update(id: string, dto: UpdateBitacoraCommand) {
     const bitacora = await this.findOne(id);
+    const { fecha, bitacora_pdf, estado } = dto;
     try {
-      return await this.bitacoraRepository.save({ ...bitacora, ...dto });
+      return await this.bitacoraRepository.save({
+        ...bitacora,
+        ...(fecha       !== undefined && { fecha }),
+        ...(bitacora_pdf !== undefined && { bitacora_pdf }),
+        ...(estado      !== undefined && { estado }),
+      });
     } catch (error) { this.handleDBExceptions(error); }
   }
 

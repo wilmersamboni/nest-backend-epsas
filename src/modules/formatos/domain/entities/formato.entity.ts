@@ -1,7 +1,5 @@
 export class Formato {
   id: string;
-  centroId: string;
-  sedeId: string | null;
   tipo: string;
   nombre: string;
   ruta_archivo: string;

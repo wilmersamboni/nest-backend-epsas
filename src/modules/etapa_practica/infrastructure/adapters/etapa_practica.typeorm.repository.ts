@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { EtapaPractica } from '../../domain/entities/etapa_practica.entity';
-import { IEtapaPracticaRepository } from '../../domain/ports/etapa_practica.repository.port';
+import { IEtapaPracticaRepository, CreateEtapaPracticaData } from '../../domain/ports/etapa_practica.repository.port';
 import { EtapaPracticaOrmEntity } from '../entities/etapa_practica.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
@@ -18,23 +18,19 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     return RequestContextService.getDataSource().getRepository(EtapaPracticaOrmEntity);
   }
 
-  async create(data: any): Promise<EtapaPractica> {
+  async create(data: CreateEtapaPracticaData): Promise<EtapaPractica> {
     const entity = this.orm.create({
       ...data,
       centroId: TenantFilter.getCurrentCentroId(),
     });
     const saved = await this.orm.save(entity) as unknown as EtapaPracticaOrmEntity;
-    await this.cache.invalidate('etapas'); // ← invalida caché al crear
+    await this.cache.invalidate('etapas');
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<EtapaPractica[]> {
     const cached = await this.cache.get<EtapaPractica[]>('etapas');
-    if (cached) return cached; // ← retorna caché si existe
-
-    // DEBUG TEMPORAL — muestra todas las prácticas sin filtro
-    const allRaw = await this.orm.find({ select: ['id', 'matriculaId', 'centroId'] as any });
-    console.log('[EP-DEBUG] Todas las prácticas en DB:', JSON.stringify(allRaw));
+    if (cached) return cached;
 
     const qb = this.orm
       .createQueryBuilder('ep')
@@ -46,7 +42,7 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
     RlsFilter.applyEtapaPractica(qb, 'ep');
 
     const result = (await qb.getMany()).map((e) => this.toDomain(e));
-    await this.cache.set('etapas', result); // ← guarda en caché
+    await this.cache.set('etapas', result);
     return result;
   }
 
@@ -89,42 +85,49 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
   async save(etapa: EtapaPractica): Promise<EtapaPractica> {
     const entity = this.orm.create(etapa);
     const result = this.toDomain(await this.orm.save(entity));
-    await this.cache.invalidate('etapas'); // ← invalida al actualizar
+    await this.cache.invalidate('etapas');
     return result;
   }
 
   async deleteById(id: string): Promise<number> {
-    const affected = (await this.orm.delete(id)).affected ?? 0;
-    await this.cache.invalidate('etapas'); // ← invalida al eliminar
+    const centroId = TenantFilter.getCurrentCentroId();
+    const affected = (await this.orm.delete({ id, centroId })).affected ?? 0;
+    await this.cache.invalidate('etapas');
     return affected;
   }
 
   async updateObservacion(id: string, observacion: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
       .update()
       .set({ observacion })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('etapas');
   }
 
   async updateAvance(id: string, avance: number): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
       .update()
       .set({ avance })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('etapas');
   }
 
   async updateEstado(id: string, estado: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
       .update()
       .set({ estado })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('etapas');
   }
@@ -152,13 +155,13 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
 
   private toDomain(e: EtapaPracticaOrmEntity): EtapaPractica {
     const p = new EtapaPractica();
-    p.id = e.id;
+    p.id          = e.id;
     p.matriculaId = e.matriculaId;
     p.fecha_inicio = e.fecha_inicio;
-    p.fecha_fin = e.fecha_fin;
-    p.estado = e.estado;
-    p.observacion = e.observacion;
-    p.avance = e.avance ?? 0;
+    p.fecha_fin    = e.fecha_fin;
+    p.estado       = e.estado;
+    p.observacion  = e.observacion;
+    p.avance       = e.avance ?? 0;
     if (e.empresa) {
       p.empresa = {
         id:        e.empresa.id,
@@ -172,8 +175,13 @@ export class EtapaPracticaTypeOrmRepository implements IEtapaPracticaRepository 
       };
     }
     if (e.modalidad) p.modalidad = { id: e.modalidad.id, nombre: (e.modalidad as any).nombre };
-    if(e.seguimientos) p['seguimientos'] = e.seguimientos.map(s => ({ id: s.id, fecha_inicio: s.fecha_inicio, fecha_fin: s.fecha_fin, observacion: s.observacion, actas_pdf: s.actas_pdf, estado: s.estado }));
-      if(e.seguimientos) p['bitacoras'] = e.seguimientos.flatMap(s => s.bitacoras ? s.bitacoras.map(b => ({ id: b.id, fecha: b.fecha, estado: b.estado })) : []);
+    if (e.seguimientos) p['seguimientos'] = e.seguimientos.map(s => ({
+      id: s.id, fecha_inicio: s.fecha_inicio, fecha_fin: s.fecha_fin,
+      observacion: s.observacion, actas_pdf: s.actas_pdf, estado: s.estado,
+    }));
+    if (e.seguimientos) p['bitacoras'] = e.seguimientos.flatMap(s =>
+      s.bitacoras ? s.bitacoras.map(b => ({ id: b.id, fecha: b.fecha, estado: b.estado })) : [],
+    );
     return p;
   }
 }

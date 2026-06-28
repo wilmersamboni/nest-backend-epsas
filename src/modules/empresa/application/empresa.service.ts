@@ -6,13 +6,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateEmpresaDto } from '../infrastructure/http/dto/create-empresa.dto';
-import { UpdateEmpresaDto } from '../infrastructure/http/dto/update-empresa.dto';
+import { CreateEmpresaCommand } from './dto/create-empresa.command';
+import { UpdateEmpresaCommand } from './dto/update-empresa.command';
 import { EMPRESA_REPOSITORY_PORT } from '../domain/ports/empresa.repository.port';
 import type { IEmpresaRepository } from '../domain/ports/empresa.repository.port';
 import type { IMunicipioServicePort } from '../domain/ports/municipio.service.port';
 import { MUNICIPIO_SERVICE_PORT } from '../domain/ports/municipio.service.port';
-import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class EmpresaService {
@@ -26,31 +25,13 @@ export class EmpresaService {
     private readonly municipioService: IMunicipioServicePort,
   ) {}
 
-  // El token ya no viene del controller — se lee del contexto del request
-  private getToken(): string {
-    const user = RequestContextService.getUser();
-    // El token raw no está en el contexto, pero el middleware lo dejó en la request.
-    // Para reenviar el token al servicio externo de municipios, lo seguimos leyendo
-    // desde el header vía REQUEST scope o lo pasamos explícitamente.
-    // Por ahora conservamos compatibilidad: el controller puede pasar el token
-    // o se puede refactorizar el adapter de municipios para leerlo del contexto.
-    return '';
-  }
-
-  async create(createEmpresaDto: CreateEmpresaDto, token?: string) {
-    const municipio = await this.municipioService.buscarMunicipio(
-      createEmpresaDto.municipio,
-      token ?? '',
-    );
-
+  async create(dto: CreateEmpresaCommand) {
+    const municipio = await this.municipioService.buscarMunicipio(dto.municipio);
     if (!municipio) {
-      throw new BadRequestException(
-        `El municipio con ID ${createEmpresaDto.municipio} no existe`,
-      );
+      throw new BadRequestException(`El municipio con ID ${dto.municipio} no existe`);
     }
-
     try {
-      return await this.empresaRepository.create(createEmpresaDto);
+      return await this.empresaRepository.create(dto);
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -68,23 +49,16 @@ export class EmpresaService {
     return empresa;
   }
 
-  async update(id: string, updateEmpresaDto: UpdateEmpresaDto, token?: string) {
+  async update(id: string, dto: UpdateEmpresaCommand) {
     const empresa = await this.findOne(id);
-
-    if (updateEmpresaDto.municipio) {
-      const municipio = await this.municipioService.buscarMunicipio(
-        updateEmpresaDto.municipio,
-        token ?? '',
-      );
+    if (dto.municipio) {
+      const municipio = await this.municipioService.buscarMunicipio(dto.municipio);
       if (!municipio) {
-        throw new BadRequestException(
-          `El municipio con ID ${updateEmpresaDto.municipio} no existe`,
-        );
+        throw new BadRequestException(`El municipio con ID ${dto.municipio} no existe`);
       }
     }
-
     try {
-      const updated = { ...empresa, ...updateEmpresaDto };
+      const updated = { ...empresa, ...dto };
       return await this.empresaRepository.save(updated);
     } catch (error) {
       this.handleDBExceptions(error);
@@ -102,8 +76,6 @@ export class EmpresaService {
       throw new BadRequestException(error.detail);
     }
     this.logger.error(error);
-    throw new InternalServerErrorException(
-      'Error desconocido, revise el log del servidor',
-    );
+    throw new InternalServerErrorException('Error desconocido, revise el log del servidor');
   }
 }

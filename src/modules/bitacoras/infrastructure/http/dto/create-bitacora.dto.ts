@@ -1,9 +1,10 @@
-import { IsDate, IsDateString, IsIn, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsDate, IsIn, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { Type } from 'class-transformer';
 
 export class CreateBitacoraDto {
-    @IsDateString()
-    @IsNotEmpty()
-    fecha:Date;
+    @Type(() => Date)
+    @IsDate()
+    fecha: Date;
 
     @IsString()
     @IsNotEmpty()

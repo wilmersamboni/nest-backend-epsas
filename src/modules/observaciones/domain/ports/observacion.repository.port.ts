@@ -1,7 +1,15 @@
 import { Observacion } from '../entities/observacion.entity';
 
+export interface CreateObservacionData {
+  fecha: Date;
+  descripcion: string;
+  evidencia_foto?: string;
+  persona: string;
+  seguimiento: { id: string };
+}
+
 export interface IObservacionRepository {
-  create(data: any): Promise<Observacion>;
+  create(data: CreateObservacionData): Promise<Observacion>;
   findAll(): Promise<Observacion[]>;
   findById(id: string): Promise<Observacion | null>;
   findByEtapaId(etapaId: string): Promise<Observacion[]>;

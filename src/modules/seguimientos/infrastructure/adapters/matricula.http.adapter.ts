@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { IMatriculaServicePort } from '../../domain/ports/matricula.service.port';
+import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
 export class MatriculaHttpAdapter implements IMatriculaServicePort {
@@ -11,12 +12,14 @@ export class MatriculaHttpAdapter implements IMatriculaServicePort {
     private readonly configService: ConfigService,
   ) {}
 
-  async listarPorAlumno(idAlumno: string, token: string): Promise<any[]> {
+  async listarPorAlumno(idAlumno: string): Promise<any[]> {
+    const token = RequestContextService.getRawToken();
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.configService.get('ERP_API_URL')}/matriculas/persona/${idAlumno}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        this.httpService.get(
+          `${this.configService.get('ERP_API_URL')}/matriculas/persona/${idAlumno}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
       );
       return response.data;
     } catch (error) {

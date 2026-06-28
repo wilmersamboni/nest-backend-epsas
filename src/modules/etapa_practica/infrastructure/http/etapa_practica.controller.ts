@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Body, Patch,
-  Param, Delete, ParseUUIDPipe, Headers, Req, UnauthorizedException
+  Param, Delete, ParseUUIDPipe, Headers,
 } from '@nestjs/common';
 import { EtapaPracticaService } from '../../application/etapa_practica.service';
 import { CreateEtapaPracticaDto } from './dto/create-etapa_practica.dto';
@@ -12,20 +12,10 @@ export class EtapaPracticaController {
   constructor(private readonly etapaPracticaService: EtapaPracticaService) {}
 
   @Post()
-@Roles('admin')
-create(
-  @Body() dto: CreateEtapaPracticaDto,
-  @Req() req
-) {
-  const token =
-    req.cookies?.token || req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    throw new UnauthorizedException('No se envió token');
+  @Roles('admin')
+  create(@Body() dto: CreateEtapaPracticaDto) {
+    return this.etapaPracticaService.create(dto);
   }
-
-  return this.etapaPracticaService.create(dto, token);
-}
 
   @Get()
   @Roles('admin', 'docente', 'estudiante')
@@ -81,7 +71,7 @@ create(
   @Patch('observacion/:id')
   @Roles('admin', 'docente')
   actualizarObservacion(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('observacion') observacion: string,
   ) {
     return this.etapaPracticaService.actualizarObservacion(id, observacion);
@@ -89,13 +79,13 @@ create(
 
   @Get('matricula/:matriculaId')
   @Roles('admin', 'docente', 'estudiante')
-  buscarPorMatricula(@Param('matriculaId') matriculaId: string) {
+  buscarPorMatricula(@Param('matriculaId', ParseUUIDPipe) matriculaId: string) {
     return this.etapaPracticaService.buscarPorMatricula(matriculaId);
   }
 
   @Patch('avance/:id')
   @Roles('admin', 'docente')
-  actualizarAvance(@Param('id') id: string) {
+  actualizarAvance(@Param('id', ParseUUIDPipe) id: string) {
     // El backend calcula el avance sumando bitácoras aceptadas
     // de todos los seguimientos de esta etapa práctica
     return this.etapaPracticaService.actualizarAvance(id);

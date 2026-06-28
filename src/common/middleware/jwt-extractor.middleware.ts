@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { DataSource } from 'typeorm';
+import * as jwt from 'jsonwebtoken';
 import { RequestContextService } from '../rls/request-context';
 import { EpsasDataSourceFactory } from '../../database/epsas-datasource.factory';
 
@@ -13,6 +14,9 @@ export interface RequestUser {
 }
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+
+// Se avisa una sola vez al arranque si JWT_SECRET no está configurado
+let _jwtSecretWarned = false;
 
 @Injectable()
 export class JwtExtractorMiddleware implements NestMiddleware {
@@ -105,31 +109,50 @@ export class JwtExtractorMiddleware implements NestMiddleware {
   }
 
   private decode(token: string) {
-    try {
-      const [, payloadB64] = token.split('.');
-      const json = Buffer.from(payloadB64, 'base64url').toString('utf8');
-      const payload = JSON.parse(json);
+    const secret = process.env.JWT_SECRET;
 
-      const cargoMap: Record<string, string> = {
-        administrador:     'admin',
-        administrador_erp: 'admin',
-        instructor:        'docente',
-        aprendiz:          'estudiante',
-      };
+    let payload: any;
 
-      const cargoRaw = payload.cargo ?? '';
-
-      return {
-        sub: String(payload.idUsuario ?? payload.sub ?? payload.id),
-        rol: cargoMap[cargoRaw] ?? 'desconocido',
-        personaId: payload.personaId ? String(payload.personaId) : undefined,
-        matriculaIds: Array.isArray(payload.matriculaIds)
-          ? (payload.matriculaIds as string[])
-          : undefined,
-      };
-    } catch (e) {
-      this.logger.warn('JWT no decodificable: ' + (e as Error).message);
-      return null;
+    if (secret) {
+      try {
+        payload = jwt.verify(token, secret);
+      } catch (e) {
+        this.logger.warn('JWT inválido o expirado: ' + (e as Error).message);
+        return null;
+      }
+    } else {
+      // Modo legacy: decodifica sin verificar firma.
+      // Configura JWT_SECRET para habilitar verificación completa.
+      if (!_jwtSecretWarned) {
+        this.logger.warn(
+          '[SECURITY] JWT_SECRET no configurado — los tokens no se verifican criptográficamente. ' +
+          'Agrega JWT_SECRET=<clave-secreta-del-ERP> en .env.',
+        );
+        _jwtSecretWarned = true;
+      }
+      try {
+        const [, payloadB64] = token.split('.');
+        payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+      } catch (e) {
+        this.logger.warn('JWT no decodificable: ' + (e as Error).message);
+        return null;
+      }
     }
+
+    const cargoMap: Record<string, string> = {
+      administrador:     'admin',
+      administrador_erp: 'admin',
+      instructor:        'docente',
+      aprendiz:          'estudiante',
+    };
+
+    return {
+      sub: String(payload.idUsuario ?? payload.sub ?? payload.id),
+      rol: cargoMap[payload.cargo ?? ''] ?? 'desconocido',
+      personaId: payload.personaId ? String(payload.personaId) : undefined,
+      matriculaIds: Array.isArray(payload.matriculaIds)
+        ? (payload.matriculaIds as string[])
+        : undefined,
+    };
   }
 }

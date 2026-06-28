@@ -1,4 +1,5 @@
 import {
+  IsEmail,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -31,9 +32,8 @@ export class CreateEmpresaDto {
   @IsNotEmpty()
   telefono: string;
 
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
-  @MinLength(1)
   correo: string;
 
   @IsString()

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { FormatoOrmEntity } from '../entities/formato.orm-entity';
 import { IFormatoRepository } from '../../domain/ports/formato.repository.port';
 import { Formato } from '../../domain/entities/formato.entity';
+import { TenantFilter } from 'src/common/filters/tenant.filter';
 import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
@@ -13,13 +14,9 @@ export class FormatoTypeormRepository implements IFormatoRepository {
     return RequestContextService.getDataSource().getRepository(FormatoOrmEntity);
   }
 
-  // ── Mappers ────────────────────────────────────────────────────────
-
   private toDomain(orm: FormatoOrmEntity): Formato {
     return {
       id:              orm.id,
-      centroId:        orm.centroId,
-      sedeId:          orm.sedeId,
       tipo:            orm.tipo,
       nombre:          orm.nombre,
       ruta_archivo:    orm.ruta_archivo,
@@ -33,12 +30,8 @@ export class FormatoTypeormRepository implements IFormatoRepository {
     };
   }
 
-  // ── Operaciones ────────────────────────────────────────────────────
-
   async create(data: Partial<Formato>): Promise<Formato> {
     const entity = this.orm.create({
-      centroId:        data.centroId,
-      sedeId:          data.sedeId ?? null,
       tipo:            data.tipo,
       nombre:          data.nombre,
       ruta_archivo:    data.ruta_archivo,
@@ -48,58 +41,92 @@ export class FormatoTypeormRepository implements IFormatoRepository {
       estado:          data.estado ?? 'activo',
       subido_por:      data.subido_por ?? null,
       etapa:           data.etapa ? ({ id: data.etapa.id } as any) : undefined,
+      centroId:        TenantFilter.getCurrentCentroId(),
+      sedeId:          null,
     });
     const saved = await this.orm.save(entity);
     return this.toDomain(saved);
   }
 
   async findAll(): Promise<Formato[]> {
-    const rows = await this.orm.find({ relations: ['etapa'] });
+    const qb = this.orm
+      .createQueryBuilder('f')
+      .leftJoinAndSelect('f.etapa', 'etapa')
+      .orderBy('f.created_at', 'DESC');
+    TenantFilter.apply(qb, 'f');
+    const rows = await qb.getMany();
     return rows.map(r => this.toDomain(r));
   }
 
   async findById(id: string): Promise<Formato | null> {
-    const row = await this.orm.findOne({ where: { id }, relations: ['etapa'] });
+    const qb = this.orm
+      .createQueryBuilder('f')
+      .leftJoinAndSelect('f.etapa', 'etapa')
+      .where('f.id = :id', { id });
+    TenantFilter.apply(qb, 'f');
+    const row = await qb.getOne();
     return row ? this.toDomain(row) : null;
   }
 
   async findByEtapaId(etapaId: string): Promise<Formato[]> {
-    const rows = await this.orm
+    const qb = this.orm
       .createQueryBuilder('f')
       .leftJoinAndSelect('f.etapa', 'etapa')
       .where('etapa.id = :etapaId', { etapaId })
-      .orderBy('f.created_at', 'DESC')
-      .getMany();
+      .orderBy('f.created_at', 'DESC');
+    TenantFilter.apply(qb, 'f');
+    const rows = await qb.getMany();
     return rows.map(r => this.toDomain(r));
   }
 
   async findByTipo(etapaId: string, tipo: string): Promise<Formato[]> {
-    const rows = await this.orm
+    const qb = this.orm
       .createQueryBuilder('f')
       .leftJoinAndSelect('f.etapa', 'etapa')
       .where('etapa.id = :etapaId', { etapaId })
       .andWhere('f.tipo = :tipo', { tipo })
-      .orderBy('f.created_at', 'DESC')
-      .getMany();
+      .orderBy('f.created_at', 'DESC');
+    TenantFilter.apply(qb, 'f');
+    const rows = await qb.getMany();
     return rows.map(r => this.toDomain(r));
   }
 
   async save(formato: Partial<Formato>): Promise<Formato> {
-    const saved = await this.orm.save(formato as any);
-    return this.toDomain(saved);
+    const centroId = TenantFilter.getCurrentCentroId();
+    const toSet: Partial<FormatoOrmEntity> = {};
+    if (formato.tipo   !== undefined) toSet.tipo   = formato.tipo;
+    if (formato.nombre !== undefined) toSet.nombre = formato.nombre;
+    if (formato.estado !== undefined) toSet.estado = formato.estado;
+
+    if (Object.keys(toSet).length > 0) {
+      await this.orm
+        .createQueryBuilder()
+        .update(FormatoOrmEntity)
+        .set(toSet)
+        .where('id = :id', { id: formato.id })
+        .andWhere('centroId = :centroId', { centroId })
+        .execute();
+    }
+
+    const result = await this.findById(formato.id!);
+    if (!result) throw new NotFoundException(`Formato con id ${formato.id} no encontrado`);
+    return result;
   }
 
   async deleteById(id: string): Promise<number> {
-    const result = await this.orm.delete(id);
+    const centroId = TenantFilter.getCurrentCentroId();
+    const result = await this.orm.delete({ id, centroId });
     return result.affected ?? 0;
   }
 
   async updateEstado(id: string, estado: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
       .update(FormatoOrmEntity)
       .set({ estado })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
   }
 }

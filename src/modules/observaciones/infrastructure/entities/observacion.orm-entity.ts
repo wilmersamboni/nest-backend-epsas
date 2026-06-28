@@ -5,12 +5,12 @@ import { PrimaryGeneratedColumn, Column, ManyToOne, Entity } from 'typeorm';
 export class ObservacionOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid')
-  centroId: string; 
+  centroId: string;
   @Column('uuid', { nullable: true })
   sedeId: string | null;
   @Column('date') fecha: Date;
   @Column('text') descripcion: string;
-  @Column('text') evidencia_foto: string;
+  @Column('text', { default: '' }) evidencia_foto: string;
   @Column('text') persona: string;
   @ManyToOne(() => SeguimientoOrmEntity, (s) => s.observaciones)
   seguimiento: SeguimientoOrmEntity;

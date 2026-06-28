@@ -42,8 +42,9 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
     RlsFilter.applyAsignacion(qb, 'asig'); // 2. solo lo que el rol ve
 
     const list = await qb.getMany();
-    await this.cache.set('asignaciones', list);
-    return list.map((e) => this.toDomain(e));
+    const mapped = list.map((e) => this.toDomain(e));
+    await this.cache.set('asignaciones', mapped);
+    return mapped;
   }
 
   async findById(id: string): Promise<Asignacion | null> {
@@ -74,6 +75,7 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
       .where('etapa.id = :etapaId', { etapaId });
 
     TenantFilter.apply(qb, 'asig');
+    RlsFilter.applyAsignacion(qb, 'asig');
 
     const list = (await qb.getMany()).map((e) => this.toDomain(e));
     await this.cache.set('asignaciones', list, `etapa:${etapaId}`);
@@ -87,8 +89,9 @@ export class AsignacionTypeOrmRepository implements IAsignacionRepository {
   }
 
   async deleteById(id: string): Promise<number> {
-    const result = await this.orm.delete(id);
-    await this.cache.invalidate('asignaciones'); // ← invalida caché al eliminar
+    const centroId = TenantFilter.getCurrentCentroId();
+    const result = await this.orm.delete({ id, centroId });
+    await this.cache.invalidate('asignaciones');
     return result.affected ?? 0;
   }
 

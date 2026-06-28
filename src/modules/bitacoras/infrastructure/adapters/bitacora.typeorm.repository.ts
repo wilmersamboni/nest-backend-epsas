@@ -99,19 +99,22 @@ export class BitacoraTypeOrmRepository implements IBitacoraRepository {
   }
 
   async updatePdf(id: string, filename: string): Promise<void> {
+    const centroId = TenantFilter.getCurrentCentroId();
     await this.orm
       .createQueryBuilder()
       .update()
       .set({ bitacora_pdf: filename })
       .where('id = :id', { id })
+      .andWhere('centroId = :centroId', { centroId })
       .execute();
     await this.cache.invalidate('bitacoras');
   }
 
   async deleteById(id: string): Promise<number> {
-    const affected = (await this.orm.delete(id)).affected ?? 0;
+    const centroId = TenantFilter.getCurrentCentroId();
+    const result = await this.orm.delete({ id, centroId });
     await this.cache.invalidate('bitacoras');
-    return affected;
+    return result.affected ?? 0;
   }
 
   private toDomain(e: BitacoraOrmEntity): Bitacora {

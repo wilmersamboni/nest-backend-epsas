@@ -5,10 +5,9 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
-import { CreateSeguimientoDto } from '../infrastructure/http/dto/create-seguimiento.dto';
-import { UpdateSeguimientoDto } from '../infrastructure/http/dto/update-seguimiento.dto';
+import { CreateSeguimientoCommand } from './dto/create-seguimiento.command';
+import { UpdateSeguimientoCommand } from './dto/update-seguimiento.command';
 import { SEGUIMIENTO_REPOSITORY_PORT } from '../domain/ports/seguimiento.repository.port';
 import { MATRICULA_SERVICE_PORT } from '../domain/ports/matricula.service.port';
 import type { ISeguimientoRepository } from '../domain/ports/seguimiento.repository.port';
@@ -26,12 +25,12 @@ export class SeguimientosService {
     private readonly matriculaService: IMatriculaServicePort,
   ) {}
 
-  async create(dto: CreateSeguimientoDto) {
+  async create(dto: CreateSeguimientoCommand) {
     try {
       const { etapaId, asignacionId, ...data } = dto;
       return await this.seguimientoRepository.create({
         ...data,
-        etapa: { id: etapaId },
+        etapa:      { id: etapaId },
         asignacion: { id: asignacionId },
       });
     } catch (error) {
@@ -50,7 +49,7 @@ export class SeguimientosService {
     return seguimiento;
   }
 
-  async update(id: string, dto: UpdateSeguimientoDto) {
+  async update(id: string, dto: UpdateSeguimientoCommand) {
     const seguimiento = await this.findOne(id);
     try {
       return await this.seguimientoRepository.save({ ...seguimiento, ...dto });
@@ -65,15 +64,8 @@ export class SeguimientosService {
     return { message: `Seguimiento con id ${id} eliminado correctamente` };
   }
 
-  // El token sigue siendo necesario aquí para reenviar al microservicio externo de matrículas
-  async listarSeguimientoPorAlumno(id_alumno: string, token: string) {
-    if (!token)
-      throw new UnauthorizedException('No se encontró la cookie de sesión');
-
-    const matriculas = await this.matriculaService.listarPorAlumno(
-      id_alumno,
-      token,
-    );
+  async listarSeguimientoPorAlumno(id_alumno: string) {
+    const matriculas = await this.matriculaService.listarPorAlumno(id_alumno);
 
     if (!Array.isArray(matriculas) || !matriculas.length) return [];
 
@@ -86,7 +78,7 @@ export class SeguimientosService {
   }
 
   async cambiarEstado(id: string, estado: string) {
-    await this.findOne(id); // valida que existe
+    await this.findOne(id);
     try {
       await this.seguimientoRepository.updateEstado(id, estado);
       return { id, estado };
@@ -96,7 +88,7 @@ export class SeguimientosService {
   }
 
   async subirActa(id: string, filename: string) {
-    await this.findOne(id); // valida que existe
+    await this.findOne(id);
     try {
       await this.seguimientoRepository.updateActas(id, filename);
       return { id, actas_pdf: filename };
@@ -105,7 +97,6 @@ export class SeguimientosService {
     }
   }
 
-  // Método interno para ser usado por otros módulos, sin token de auth
   async createInternal(data: {
     actas_pdf: string;
     estado: string;

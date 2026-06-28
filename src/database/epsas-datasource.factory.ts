@@ -78,7 +78,7 @@ export class EpsasDataSourceFactory {
       username: this.config.get<string>('DB_USERNAME'),
       password: this.config.get<string>('DB_PASSWORD'),
       database: tenant.epsasDbName,
-      synchronize: this.config.get<string>('NODE_ENV') !== 'production',
+      synchronize: this.config.get<string>('TYPEORM_SYNC') === 'true',
       entities: EPSAS_ENTITIES,
     });
 

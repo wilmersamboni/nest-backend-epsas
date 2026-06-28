@@ -8,8 +8,6 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
-  Req,
-  UnauthorizedException,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -37,9 +35,21 @@ export class SeguimientosController {
     return this.seguimientosService.findAll();
   }
 
+  @Get('etapa/:id')
+  @Roles('admin', 'docente', 'estudiante')
+  findByEtapa(@Param('id', ParseUUIDPipe) id: string) {
+    return this.seguimientosService.findByEtapaId(id);
+  }
+
+  @Get('alumno/:id')
+  @Roles('admin', 'docente', 'estudiante')
+  listarPorAlumno(@Param('id', ParseUUIDPipe) id: string) {
+    return this.seguimientosService.listarSeguimientoPorAlumno(id);
+  }
+
   @Get(':id')
   @Roles('admin', 'docente', 'estudiante')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.seguimientosService.findOne(id);
   }
 
@@ -58,12 +68,6 @@ export class SeguimientosController {
     return this.seguimientosService.remove(id);
   }
 
-  @Get('etapa/:id')
-  @Roles('admin', 'docente', 'estudiante')
-  findByEtapa(@Param('id', ParseUUIDPipe) id: string) {
-    return this.seguimientosService.findByEtapaId(id);
-  }
-
   @Patch(':id/estado')
   @Roles('admin', 'docente')
   cambiarEstado(
@@ -75,33 +79,26 @@ export class SeguimientosController {
 
   @Patch(':id/acta')
   @Roles('admin', 'docente')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads/actas',
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        cb(null, `${unique}${extname(file.originalname)}`);
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/actas',
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `${unique}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') cb(null, true);
+        else cb(new BadRequestException('Solo se permiten archivos PDF'), false);
       },
     }),
-    fileFilter: (_req, file, cb) => {
-      if (file.mimetype === 'application/pdf') cb(null, true);
-      else cb(new BadRequestException('Solo se permiten archivos PDF'), false);
-    },
-  }))
+  )
   async subirActa(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Debes subir un archivo PDF');
     return this.seguimientosService.subirActa(id, file.filename);
-  }
-
-  @Get('alumno/:id')
-  @Roles('admin', 'docente', 'estudiante')
-  listarPorAlumno(@Param('id') id: string, @Req() req) {
-    const token =
-      req.cookies?.token || req.headers.authorization?.split(' ')[1];
-    if (!token) throw new UnauthorizedException('No se envió token');
-    return this.seguimientosService.listarSeguimientoPorAlumno(id, token);
   }
 }

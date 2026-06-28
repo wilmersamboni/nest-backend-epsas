@@ -1,10 +1,10 @@
 import {
   BadRequestException, Inject, Injectable,
-  InternalServerErrorException, Logger, NotFoundException, UnauthorizedException,
+  InternalServerErrorException, Logger, NotFoundException,
 } from '@nestjs/common';
-import { CreateAsignacioneDto } from '../infrastructure/http/dto/create-asignacione.dto';
-import { UpdateAsignacioneDto } from '../infrastructure/http/dto/update-asignacione.dto';
-import { ASIGNACION_REPOSITORY_PORT, } from '../domain/ports/asignacion.repository.port';
+import { CreateAsignacionCommand } from './dto/create-asignacion.command';
+import { UpdateAsignacionCommand } from './dto/update-asignacion.command';
+import { ASIGNACION_REPOSITORY_PORT } from '../domain/ports/asignacion.repository.port';
 import { PERSONA_SERVICE_PORT } from '../domain/ports/persona.service.port';
 import type { IPersonaServicePort } from '../domain/ports/persona.service.port';
 import type { IAsignacionRepository } from '../domain/ports/asignacion.repository.port';
@@ -21,12 +21,8 @@ export class AsignacionesService {
     private readonly personaService: IPersonaServicePort,
   ) {}
 
-  async create(dto: CreateAsignacioneDto, token: string) {
-    this.logger.log(`[create] token recibido: "${token?.substring(0, 30)}..."`);
-  
-  if (!token) throw new UnauthorizedException('No se envió token');
-
-    const persona = await this.personaService.buscarPersona(dto.instructor, token);
+  async create(dto: CreateAsignacionCommand) {
+    const persona = await this.personaService.buscarPersona(dto.instructor);
     if (!persona) throw new BadRequestException(`El instructor con ID ${dto.instructor} no existe`);
 
     try {
@@ -51,11 +47,11 @@ export class AsignacionesService {
     return asignacion;
   }
 
-  async update(id: string, dto: UpdateAsignacioneDto, token: string) {
+  async update(id: string, dto: UpdateAsignacionCommand) {
     const asignacion = await this.findOne(id);
 
     if (dto.instructor) {
-      const persona = await this.personaService.buscarPersona(dto.instructor, token);
+      const persona = await this.personaService.buscarPersona(dto.instructor);
       if (!persona) throw new BadRequestException(`La persona con ID ${dto.instructor} no existe`);
     }
 

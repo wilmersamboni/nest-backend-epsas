@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Observacion } from '../../domain/entities/observacion.entity';
-import { IObservacionRepository } from '../../domain/ports/observacion.repository.port';
+import {
+  IObservacionRepository,
+  CreateObservacionData,
+} from '../../domain/ports/observacion.repository.port';
 import { ObservacionOrmEntity } from '../entities/observacion.orm-entity';
 import { RlsFilter } from 'src/common/filters/rls.filter';
 import { TenantFilter } from 'src/common/filters/tenant.filter';
@@ -18,10 +21,14 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
     return RequestContextService.getDataSource().getRepository(ObservacionOrmEntity);
   }
 
-  async create(data: Partial<ObservacionOrmEntity>): Promise<Observacion> {
+  async create(data: CreateObservacionData): Promise<Observacion> {
     const entity = this.orm.create({
-      ...data,
-      centroId: TenantFilter.getCurrentCentroId(),
+      fecha:          data.fecha,
+      descripcion:    data.descripcion,
+      evidencia_foto: data.evidencia_foto ?? '',
+      persona:        data.persona,
+      seguimiento:    { id: data.seguimiento.id } as any,
+      centroId:       TenantFilter.getCurrentCentroId(),
     });
     const saved = await this.orm.save(entity) as unknown as ObservacionOrmEntity;
     await this.cache.invalidate('observaciones');
@@ -71,33 +78,45 @@ export class ObservacionTypeOrmRepository implements IObservacionRepository {
       .orderBy('o.fecha', 'DESC');
 
     TenantFilter.apply(qb, 'o');
+    RlsFilter.applyObservacion(qb, 'o');
     return (await qb.getMany()).map((e) => this.toDomain(e));
   }
 
   async findBySeguimientoId(seguimientoId: string): Promise<Observacion[]> {
-  const qb = this.orm
-    .createQueryBuilder('o')
-    .innerJoinAndSelect('o.seguimiento', 'seguimiento')
-    .where('seguimiento.id = :seguimientoId', { seguimientoId })
-    .orderBy('o.fecha', 'DESC');
+    const qb = this.orm
+      .createQueryBuilder('o')
+      .innerJoinAndSelect('o.seguimiento', 'seguimiento')
+      .where('seguimiento.id = :seguimientoId', { seguimientoId })
+      .orderBy('o.fecha', 'DESC');
 
-  // Aplicar filtros igual que en los otros métodos
-  TenantFilter.apply(qb, 'o');
-  RlsFilter.applyObservacion(qb, 'o');
-
-  const result = (await qb.getMany()).map((e) => this.toDomain(e));
-  return result;
-}
-  
+    TenantFilter.apply(qb, 'o');
+    RlsFilter.applyObservacion(qb, 'o');
+    return (await qb.getMany()).map((e) => this.toDomain(e));
+  }
 
   async save(o: Observacion): Promise<Observacion> {
-    const result = this.toDomain(await this.orm.save(this.orm.create(o)));
+    const centroId = TenantFilter.getCurrentCentroId();
+    await this.orm
+      .createQueryBuilder()
+      .update(ObservacionOrmEntity)
+      .set({
+        fecha:          o.fecha,
+        descripcion:    o.descripcion,
+        evidencia_foto: o.evidencia_foto,
+        persona:        o.persona,
+      })
+      .where('id = :id', { id: o.id })
+      .andWhere('centroId = :centroId', { centroId })
+      .execute();
     await this.cache.invalidate('observaciones');
+    const result = await this.findById(o.id);
+    if (!result) throw new NotFoundException(`Observacion con id ${o.id} no encontrada`);
     return result;
   }
 
   async deleteById(id: string): Promise<number> {
-    const affected = (await this.orm.delete(id)).affected ?? 0;
+    const centroId = TenantFilter.getCurrentCentroId();
+    const affected = (await this.orm.delete({ id, centroId })).affected ?? 0;
     await this.cache.invalidate('observaciones');
     return affected;
   }

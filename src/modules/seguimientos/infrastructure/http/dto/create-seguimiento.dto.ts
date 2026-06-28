@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsString , IsIn, IsOptional, IsDateString, IsUUID } from "class-validator";
+import { IsDate, IsNotEmpty, IsString, IsIn, IsOptional, IsUUID } from "class-validator";
+import { Type } from 'class-transformer';
 
 export class CreateSeguimientoDto {
 
@@ -12,26 +13,23 @@ export class CreateSeguimientoDto {
 
     @IsString()
     @IsOptional()
-    observacion: string;
+    observacion?: string;
 
-    @IsDateString()
+    @Type(() => Date)
+    @IsDate()
     @IsNotEmpty()
-    fecha_inicio:Date;
+    fecha_inicio: Date;
 
-    @IsDateString()
+    @Type(() => Date)
+    @IsDate()
     @IsNotEmpty()
-    fecha_fin: Date
-
-    
-    @IsUUID()
-    @IsNotEmpty()
-    etapaId:string
+    fecha_fin: Date;
 
     @IsUUID()
     @IsNotEmpty()
-    asignacionId:string
+    etapaId: string;
 
-
-
-
+    @IsUUID()
+    @IsNotEmpty()
+    asignacionId: string;
 }

@@ -1,16 +1,15 @@
 import {
   BadRequestException,
+  HttpException,
   Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateEtapaPracticaDto } from '../infrastructure/http/dto/create-etapa_practica.dto';
-import { UpdateEtapaPracticaDto } from '../infrastructure/http/dto/update-etapa_practica.dto';
-import {
-  ETAPA_PRACTICA_REPOSITORY_PORT,
-} from '../domain/ports/etapa_practica.repository.port';
+import { CreateEtapaPracticaCommand } from './dto/create-etapa_practica.command';
+import { UpdateEtapaPracticaCommand } from './dto/update-etapa_practica.command';
+import { ETAPA_PRACTICA_REPOSITORY_PORT } from '../domain/ports/etapa_practica.repository.port';
 import { SeguimientosService } from 'src/modules/seguimientos/application/seguimientos.service';
 import { BitacorasService } from 'src/modules/bitacoras/application/bitacoras.service';
 import { AsignacionesService } from 'src/modules/asignaciones/application/asignaciones.service';
@@ -24,99 +23,78 @@ export class EtapaPracticaService {
   constructor(
     @Inject(ETAPA_PRACTICA_REPOSITORY_PORT)
     private readonly etapaPracticaRepository: IEtapaPracticaRepository,
-
-    // Servicios de otros módulos inyectados directamente
-    // (son dependencias de aplicación, no de dominio)
     private readonly seguimientosService: SeguimientosService,
     private readonly bitacorasService: BitacorasService,
     private readonly asignacionesService: AsignacionesService,
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
-  async create(dto: CreateEtapaPracticaDto, token?: string) {
-    try {
-      const { empresaId, modalidadId, asignacion, avanceMatricula, ...data } = dto;
+  async create(dto: CreateEtapaPracticaCommand) {
+    const { empresaId, modalidadId, asignacion, avanceMatricula, ...data } = dto;
 
-      // Validar avance mínimo si el cliente lo envía
-      if (avanceMatricula !== undefined) {
-        const config = await this.configuracionService.getConfig();
-        if (avanceMatricula < config.minAvance) {
-          throw new BadRequestException(
-            `El aprendiz no cumple el avance mínimo requerido ` +
-            `(${config.minAvance}%). Avance actual: ${avanceMatricula}%`,
-          );
-        }
+    // Validación fuera del try-catch: BadRequestException debe llegar al cliente como 400
+    if (avanceMatricula !== undefined) {
+      const config = await this.configuracionService.getConfig();
+      if (avanceMatricula < config.minAvance) {
+        throw new BadRequestException(
+          `El aprendiz no cumple el avance mínimo requerido ` +
+          `(${config.minAvance}%). Avance actual: ${avanceMatricula}%`,
+        );
       }
+    }
 
+    try {
       // 1. Crear etapa
       const practica = await this.etapaPracticaRepository.create({
         ...data,
-        empresa: { id: empresaId },
+        empresa:   { id: empresaId },
         modalidad: { id: modalidadId },
       });
 
-      // 2. Calcular fechas de los seguimientos
+      // 2. Calcular fechas de seguimientos
       const fechaInicio = new Date(practica.fecha_inicio);
-          
+
       const fechaMitad = new Date(fechaInicio);
-      fechaMitad.setMonth(fechaMitad.getMonth() + 2); // mes 2
-          
+      fechaMitad.setMonth(fechaMitad.getMonth() + 2);
+
       const fechaTercio = new Date(fechaInicio);
-      fechaTercio.setMonth(fechaTercio.getMonth() + 4); // mes 4
-          
+      fechaTercio.setMonth(fechaTercio.getMonth() + 4);
+
       const fechaFin = new Date(fechaInicio);
-      fechaFin.setMonth(fechaFin.getMonth() + 6); // mes 6
-          
-      // 3. Crear los tres seguimientos
+      fechaFin.setMonth(fechaFin.getMonth() + 6);
+
+      // 3. Crear tres seguimientos
       const seg1 = await this.seguimientosService.createInternal({
-        actas_pdf: 'pendiente',
-        estado: 'activo',
-        observacion: 'Primer seguimiento',
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaMitad,
-        etapaId: practica.id,
+        actas_pdf: 'pendiente', estado: 'activo', observacion: 'Primer seguimiento',
+        fecha_inicio: fechaInicio, fecha_fin: fechaMitad, etapaId: practica.id,
       });
-      
+
       const seg2 = await this.seguimientosService.createInternal({
-        actas_pdf: 'pendiente',
-        estado: 'activo',
-        observacion: 'Segundo seguimiento',
-        fecha_inicio: fechaMitad,
-        fecha_fin: fechaTercio,
-        etapaId: practica.id,
+        actas_pdf: 'pendiente', estado: 'activo', observacion: 'Segundo seguimiento',
+        fecha_inicio: fechaMitad, fecha_fin: fechaTercio, etapaId: practica.id,
       });
-      
+
       const seg3 = await this.seguimientosService.createInternal({
-        actas_pdf: 'pendiente',
-        estado: 'activo',
-        observacion: 'Tercer seguimiento',
-        fecha_inicio: fechaTercio,
-        fecha_fin: fechaFin,
-        etapaId: practica.id,
+        actas_pdf: 'pendiente', estado: 'activo', observacion: 'Tercer seguimiento',
+        fecha_inicio: fechaTercio, fecha_fin: fechaFin, etapaId: practica.id,
       });
-      
+
       // 4. Crear 2 bitácoras por seguimiento (6 en total)
       for (const seg of [seg1, seg2, seg3]) {
         for (let i = 1; i <= 2; i++) {
           const fechaBitacora = new Date(seg.fecha_inicio);
           fechaBitacora.setMonth(fechaBitacora.getMonth() + i);
-        
           await this.bitacorasService.createInternal({
-            fecha: fechaBitacora,
-            bitacora_pdf: 'pendiente',
-            estado: 'pendiente',
-            seguimientoId: seg.id,
+            fecha: fechaBitacora, bitacora_pdf: 'pendiente',
+            estado: 'pendiente', seguimientoId: seg.id,
           });
         }
       }
 
-      // 5. Crear asignación de instructor si se envió en el body
+      // 5. Asignación de instructor (opcional)
       if (asignacion) {
-        await this.asignacionesService.create(
-          { ...asignacion, etapaId: practica.id },
-          token ?? '',
-        );
-        this.logger.log(`[Create] Asignación de instructor creada para etapa ${practica.id}`);
+        await this.asignacionesService.create({ ...asignacion, etapaId: practica.id });
+        this.logger.log(`[Create] Asignación creada para etapa ${practica.id}`);
       }
 
       return practica;
@@ -136,15 +114,15 @@ export class EtapaPracticaService {
     return practica;
   }
 
-  async update(id: string, dto: UpdateEtapaPracticaDto) {
+  async update(id: string, dto: UpdateEtapaPracticaCommand) {
     const practica = await this.etapaPracticaRepository.findByIdWithRelations(id);
     if (!practica)
       throw new NotFoundException(`Etapa practica con id ${id} no encontrada`);
 
-    const { empresaId, modalidadId, ...data } = dto;
+    const { empresaId, modalidadId, asignacion: _a, avanceMatricula: _v, ...data } = dto;
 
     const updated = { ...practica, ...data };
-    if (empresaId) updated.empresa = { id: empresaId };
+    if (empresaId)   updated.empresa   = { id: empresaId };
     if (modalidadId) updated.modalidad = { id: modalidadId };
 
     try {
@@ -179,10 +157,8 @@ export class EtapaPracticaService {
 
   async actualizarAvance(id: string): Promise<{ avance: number }> {
     try {
-      // Obtener todos los seguimientos de esta etapa práctica
       const seguimientos = await this.seguimientosService.findByEtapaId(id);
 
-      // Contar bitácoras aceptadas en TODOS los seguimientos
       let totalBitacoras = 0;
       let aceptadas      = 0;
 
@@ -197,7 +173,6 @@ export class EtapaPracticaService {
         : 0;
 
       this.logger.log(`[Avance] etapa=${id} → ${aceptadas}/${totalBitacoras} = ${avance}%`);
-
       await this.etapaPracticaRepository.updateAvance(id, avance);
       return { avance };
     } catch (e) {
@@ -208,9 +183,8 @@ export class EtapaPracticaService {
 
   async cambiarEstado(id: string, nuevoEstado: string): Promise<{ id: string; estado: string }> {
     const validos = ['activo', 'inactivo', 'suspendido', 'por certificar', 'certificado'];
-    if (!validos.includes(nuevoEstado)) {
+    if (!validos.includes(nuevoEstado))
       throw new BadRequestException(`Estado '${nuevoEstado}' no es válido`);
-    }
     await this.etapaPracticaRepository.updateEstado(id, nuevoEstado);
     return { id, estado: nuevoEstado };
   }
@@ -221,7 +195,6 @@ export class EtapaPracticaService {
       throw new NotFoundException(`Etapa practica con id ${id} no encontrada`);
     if (practica.estado === 'activo')
       throw new BadRequestException('La etapa práctica ya se encuentra activa');
-
     await this.etapaPracticaRepository.updateEstado(id, 'activo');
     return { mensaje: 'Etapa práctica activada correctamente' };
   }
@@ -232,17 +205,14 @@ export class EtapaPracticaService {
       throw new NotFoundException(`Etapa practica con id ${id} no encontrada`);
     if (practica.estado === 'inactivo')
       throw new BadRequestException('La etapa práctica ya se encuentra inactiva');
-
     await this.etapaPracticaRepository.updateEstado(id, 'inactivo');
     return { mensaje: 'Etapa práctica inactivada correctamente' };
   }
 
   private handleDBExceptions(error: any) {
+    if (error instanceof HttpException) throw error;
     if (error.code === '23505') throw new BadRequestException(error.detail);
     this.logger.error(error);
-    throw new InternalServerErrorException(
-      'Error desconocido, revise el log del servidor',
-    );
+    throw new InternalServerErrorException('Error desconocido, revise el log del servidor');
   }
 }
-

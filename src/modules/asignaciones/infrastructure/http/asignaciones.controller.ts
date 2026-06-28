@@ -7,8 +7,6 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
-  Req,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { AsignacionesService } from '../../application/asignaciones.service';
 import { CreateAsignacioneDto } from './dto/create-asignacione.dto';
@@ -21,11 +19,8 @@ export class AsignacionesController {
 
   @Post()
   @Roles('admin')
-  create(@Body() createAsignacioneDto: CreateAsignacioneDto, @Req() req) {
-    const token =
-      req.cookies?.token || req.headers.authorization?.split(' ')[1];
-    if (!token) throw new UnauthorizedException('No se envió token');
-    return this.asignacionesService.create(createAsignacioneDto, token);
+  create(@Body() createAsignacioneDto: CreateAsignacioneDto) {
+    return this.asignacionesService.create(createAsignacioneDto);
   }
 
   @Get()
@@ -34,7 +29,6 @@ export class AsignacionesController {
     return this.asignacionesService.findAll();
   }
 
-  /** Retorna todas las asignaciones de una etapa práctica específica */
   @Get('etapa/:etapaId')
   @Roles('admin', 'docente')
   findByEtapa(@Param('etapaId', ParseUUIDPipe) etapaId: string) {
@@ -52,12 +46,8 @@ export class AsignacionesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateAsignacioneDto: UpdateAsignacioneDto,
-    @Req() req,
   ) {
-    const token =
-      req.cookies?.token || req.headers.authorization?.split(' ')[1];
-    if (!token) throw new UnauthorizedException('No se envió token');
-    return this.asignacionesService.update(id, updateAsignacioneDto, token);
+    return this.asignacionesService.update(id, updateAsignacioneDto);
   }
 
   @Delete(':id')

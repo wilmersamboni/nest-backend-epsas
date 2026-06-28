@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { IMunicipioServicePort } from '../../domain/ports/municipio.service.port';
+import { IMunicipioServicePort, MunicipioInfo } from '../../domain/ports/municipio.service.port';
 import { RequestContextService } from 'src/common/rls/request-context';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class MunicipioHttpAdapter implements IMunicipioServicePort {
 
   constructor(private readonly httpService: HttpService) {}
 
-  async buscarMunicipio(idMunicipio: string, _token?: string): Promise<any | null> {
+  async buscarMunicipio(idMunicipio: string): Promise<MunicipioInfo | null> {
     const token  = RequestContextService.getRawToken();
     const slug   = RequestContextService.get()?.slug ?? null;
     const headers: Record<string, string> = {};

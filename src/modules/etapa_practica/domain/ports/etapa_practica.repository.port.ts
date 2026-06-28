@@ -1,7 +1,17 @@
 import { EtapaPractica } from '../entities/etapa_practica.entity';
 
+export interface CreateEtapaPracticaData {
+  matriculaId: string;
+  fecha_inicio: Date;
+  fecha_fin: Date;
+  estado: string;
+  observacion?: string;
+  empresa: { id: string };
+  modalidad: { id: string };
+}
+
 export interface IEtapaPracticaRepository {
-  create(data: any): Promise<EtapaPractica>;
+  create(data: CreateEtapaPracticaData): Promise<EtapaPractica>;
   findAll(): Promise<EtapaPractica[]>;
   findById(id: string): Promise<EtapaPractica | null>;
   findByIdWithRelations(id: string): Promise<EtapaPractica | null>;

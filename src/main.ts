@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,7 +14,9 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api2')
+  app.setGlobalPrefix('api2', {
+    exclude: [{ path: 'uploads/:folder/:filename', method: RequestMethod.GET }],
+  })
 
 app.use(cookieParser());
   app.useGlobalPipes(
