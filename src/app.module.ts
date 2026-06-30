@@ -13,6 +13,7 @@ import { ObservacionesModule } from './modules/observaciones/observaciones.modul
 import { EtapaPracticaModule } from './modules/etapa_practica/etapa_practica.module';
 import { FormatosModule } from './modules/formatos/formatos.module';
 import { DocumentosModule } from './modules/documentos-practica/documento-practica.module';
+import { TenantProvisionModule } from './tenant-provision/tenant-provision.module';
 // RLS
 import { JwtExtractorMiddleware } from './common/middleware/jwt-extractor.middleware';
 import { UploadsController } from './common/controllers/uploads.controller';
@@ -38,6 +39,7 @@ import { EpsasDataSourceFactory } from './database/epsas-datasource.factory';
     ObservacionesModule,
     FormatosModule,
     DocumentosModule,
+    TenantProvisionModule,
 
     CacheModule.registerAsync({
       isGlobal: true,
